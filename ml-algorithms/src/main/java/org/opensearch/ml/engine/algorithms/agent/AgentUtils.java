@@ -5,6 +5,7 @@
 
 package org.opensearch.ml.engine.algorithms.agent;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.opensearch.core.xcontent.XContentParserUtils.ensureExpectedToken;
 import static org.opensearch.ml.common.CommonValue.MCP_CONNECTORS_FIELD;
 import static org.opensearch.ml.common.CommonValue.MCP_CONNECTOR_ID_FIELD;
@@ -34,6 +35,9 @@ import java.lang.reflect.Type;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -75,6 +79,7 @@ import org.opensearch.ml.common.utils.StringUtils;
 import org.opensearch.ml.engine.MLEngineClassLoader;
 import org.opensearch.ml.engine.algorithms.remote.McpConnectorExecutor;
 import org.opensearch.ml.engine.encryptor.Encryptor;
+import org.opensearch.ml.engine.function_calling.FunctionCalling;
 import org.opensearch.ml.engine.tools.McpSseTool;
 import org.opensearch.remote.metadata.client.GetDataObjectRequest;
 import org.opensearch.remote.metadata.client.SdkClient;
@@ -128,6 +133,13 @@ public class AgentUtils {
     public static final String LLM_FINISH_REASON_PATH = "llm_finish_reason_path";
     public static final String LLM_FINISH_REASON_TOOL_USE = "llm_finish_reason_tool_use";
     public static final String TOOL_FILTERS_FIELD = "tool_filters";
+
+    // For function calling, do not escape the below params in connector by default
+    public static final String DEFAULT_NO_ESCAPE_PARAMS = "_chat_history,_tools,_interactions,tool_configs";
+
+    public static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+    public static final String DEFAULT_DATETIME_PREFIX = "Current date and time: ";
+    private static final ZoneId UTC_ZONE = ZoneId.of("UTC");
 
     public static String addExamplesToPrompt(Map<String, String> parameters, String prompt) {
         Map<String, String> examplesMap = new HashMap<>();
@@ -299,7 +311,8 @@ public class AgentUtils {
         ModelTensorOutput tmpModelTensorOutput,
         List<String> llmResponsePatterns,
         Set<String> inputTools,
-        List<String> interactions
+        List<String> interactions,
+        FunctionCalling functionCalling
     ) {
         Map<String, String> modelOutput = new HashMap<>();
         Map<String, ?> dataAsMap = tmpModelTensorOutput.getMlModelOutputs().get(0).getMlModelTensors().get(0).getDataAsMap();
@@ -339,20 +352,33 @@ public class AgentUtils {
                 llmFinishReason = JsonPath.read(dataAsMap, llmFinishReasonPath);
             }
             if (parameters.get(LLM_FINISH_REASON_TOOL_USE).equalsIgnoreCase(llmFinishReason) || isToolUseResponse) {
-                List toolCalls = null;
+                List<Map<String, String>> toolCalls = null;
                 try {
-                    String toolCallsPath = parameters.get(TOOL_CALLS_PATH);
-                    if (toolCallsPath.startsWith("_llm_response.")) {
-                        Map<String, Object> llmResponse = StringUtils.fromJson(response.toString(), RESPONSE_FIELD);
-                        toolCalls = JsonPath.read(llmResponse, toolCallsPath.substring("_llm_response.".length()));
+                    String toolName = "";
+                    String toolInput = "";
+                    String toolCallId = "";
+                    if (functionCalling != null) {
+                        toolCalls = functionCalling.handle(tmpModelTensorOutput, parameters);
+                        // TODO: support multiple tool calls here
+                        toolName = toolCalls.getFirst().get("tool_name");
+                        toolInput = toolCalls.getFirst().get("tool_input");
+                        toolCallId = toolCalls.getFirst().get("tool_call_id");
                     } else {
-                        toolCalls = JsonPath.read(dataAsMap, toolCallsPath);
+                        String toolCallsPath = parameters.get(TOOL_CALLS_PATH);
+                        if (toolCallsPath.startsWith("_llm_response.")) {
+                            Map<String, Object> llmResponse = StringUtils.fromJson(response.toString(), RESPONSE_FIELD);
+                            toolCalls = JsonPath.read(llmResponse, toolCallsPath.substring("_llm_response.".length()));
+                        } else {
+                            toolCalls = JsonPath.read(dataAsMap, toolCallsPath);
+                        }
+                        toolName = JsonPath.read(toolCalls.get(0), parameters.get(TOOL_CALLS_TOOL_NAME));
+                        toolInput = StringUtils.toJson(JsonPath.read(toolCalls.get(0), parameters.get(TOOL_CALLS_TOOL_INPUT)));
+                        toolCallId = JsonPath.read(toolCalls.get(0), parameters.get(TOOL_CALL_ID_PATH));
                     }
                     String toolCallsMsgPath = parameters.get(INTERACTION_TEMPLATE_ASSISTANT_TOOL_CALLS_PATH);
                     String toolCallsMsgExcludePath = parameters.get(INTERACTION_TEMPLATE_ASSISTANT_TOOL_CALLS_EXCLUDE_PATH);
                     if (toolCallsMsgPath != null) {
                         if (toolCallsMsgExcludePath != null) {
-
                             Map<String, ?> newDataAsMap = removeJsonPath(dataAsMap, toolCallsMsgExcludePath, false);
                             Object toolCallsMsg = JsonPath.read(newDataAsMap, toolCallsMsgPath);
                             interactions.add(StringUtils.toJson(toolCallsMsg));
@@ -371,9 +397,6 @@ public class AgentUtils {
                                 )
                             );
                     }
-                    String toolName = JsonPath.read(toolCalls.get(0), parameters.get(TOOL_CALLS_TOOL_NAME));
-                    String toolInput = StringUtils.toJson(JsonPath.read(toolCalls.get(0), parameters.get(TOOL_CALLS_TOOL_INPUT)));
-                    String toolCallId = JsonPath.read(toolCalls.get(0), parameters.get(TOOL_CALL_ID_PATH));
                     modelOutput.put(THOUGHT, "");
                     modelOutput.put(ACTION, toolName);
                     modelOutput.put(ACTION_INPUT, toolInput);
@@ -930,5 +953,46 @@ public class AgentUtils {
                 ((McpSseTool) tool).getMcpSyncClient().closeGracefully();
             }
         }
+    }
+
+    /**
+     * Generates a formatted current date and time string in UTC timezone.
+     * 
+     * <p>This method returns the current date and time formatted according to the provided pattern.
+     * If no format is provided or the format is invalid, it uses the default format:
+     * "yyyy-MM-dd'T'HH:mm:ss'Z'" (e.g., "2024-01-15T14:30:00Z").
+     * 
+     * <p>The method always returns the time in UTC timezone regardless of the system's local timezone.
+     * 
+     * @param dateFormat The date format pattern to use. Can be null or empty to use the default format.
+     *                   Must be a valid {@link java.time.format.DateTimeFormatter} pattern.
+     *                   Examples:
+     *                   <ul>
+     *                     <li>"yyyy-MM-dd HH:mm:ss" → "2024-01-15 14:30:00"</li>
+     *                     <li>"EEEE, MMMM d, yyyy 'at' h:mm a z" → "Monday, January 15, 2024 at 2:30 PM UTC"</li>
+     *                     <li>"MM/dd/yyyy h:mm a" → "01/15/2024 2:30 PM"</li>
+     *                     <li>"yyyy-MM-dd'T'HH:mm:ss'Z'" → "2024-01-15T14:30:00Z"</li>
+     *                   </ul>
+     * @return A string containing the current date and time prefixed with "Current date and time: ".
+     *         If the provided format is invalid, a warning is logged and the default format is used.
+     * @see java.time.format.DateTimeFormatter
+     * @see java.time.ZoneId
+     */
+    public static String getCurrentDateTime(String dateFormat) {
+        Instant now = Instant.now();
+        DateTimeFormatter formatter;
+
+        if (!isBlank(dateFormat)) {
+            try {
+                formatter = DateTimeFormatter.ofPattern(dateFormat).withZone(UTC_ZONE);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid date format provided: {}. Using default format.", dateFormat);
+                formatter = DateTimeFormatter.ofPattern(DEFAULT_DATETIME_FORMAT).withZone(UTC_ZONE);
+            }
+        } else {
+            formatter = DateTimeFormatter.ofPattern(DEFAULT_DATETIME_FORMAT).withZone(UTC_ZONE);
+        }
+
+        return DEFAULT_DATETIME_PREFIX + formatter.format(now);
     }
 }

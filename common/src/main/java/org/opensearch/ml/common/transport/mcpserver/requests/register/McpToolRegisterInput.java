@@ -1,8 +1,6 @@
 /*
- *
- *  * Copyright OpenSearch Contributors
- *  * SPDX-License-Identifier: Apache-2.0
- *
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package org.opensearch.ml.common.transport.mcpserver.requests.register;
@@ -72,7 +70,7 @@ public class McpToolRegisterInput extends McpToolBaseInput {
                     name = parser.text();
                     break;
                 case DESCRIPTION_FIELD:
-                    description = parser.text();
+                    description = parser.textOrNull();
                     break;
                 case PARAMS_FIELD:
                     params = parser.map();

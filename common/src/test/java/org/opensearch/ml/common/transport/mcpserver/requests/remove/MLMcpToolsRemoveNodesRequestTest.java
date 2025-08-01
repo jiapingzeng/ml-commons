@@ -1,8 +1,6 @@
 /*
- *
- *  * Copyright OpenSearch Contributors
- *  * SPDX-License-Identifier: Apache-2.0
- *
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package org.opensearch.ml.common.transport.mcpserver.requests.remove;
@@ -116,7 +114,7 @@ public class MLMcpToolsRemoveNodesRequestTest {
 
     @Test
     public void testParse_AllFields() throws Exception {
-        String jsonStr = "[\n" + "    \"MyListIndexTool2\"\n" + "]";
+        String jsonStr = "[\n" + "    \"GoogleSearchTool1, GoogleSearchTool2\"\n" + "]";
 
         XContentParser parser = XContentType.JSON
             .xContent()
@@ -127,6 +125,8 @@ public class MLMcpToolsRemoveNodesRequestTest {
             );
 
         MLMcpToolsRemoveNodesRequest parsed = MLMcpToolsRemoveNodesRequest.parse(parser, new String[] { "nodeId" });
-        assertEquals(1, parsed.getMcpTools().size());
+        assertEquals(2, parsed.getMcpTools().size());
+        assertEquals("GoogleSearchTool1", parsed.getMcpTools().getFirst());
+        assertEquals("GoogleSearchTool2", parsed.getMcpTools().getLast());
     }
 }

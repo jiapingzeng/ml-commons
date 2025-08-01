@@ -5,10 +5,13 @@
 
 package org.opensearch.ml.plugin;
 
+import static org.opensearch.ml.common.CommonValue.MCP_SESSION_MANAGEMENT_INDEX;
+import static org.opensearch.ml.common.CommonValue.MCP_TOOLS_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_AGENT_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_CONFIG_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_CONNECTOR_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_CONTROLLER_INDEX;
+import static org.opensearch.ml.common.CommonValue.ML_JOBS_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_MEMORY_MESSAGE_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_MEMORY_META_INDEX;
 import static org.opensearch.ml.common.CommonValue.ML_MODEL_GROUP_INDEX;
@@ -62,6 +65,9 @@ import org.opensearch.index.analysis.TokenizerFactory;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory;
+import org.opensearch.jobscheduler.spi.JobSchedulerExtension;
+import org.opensearch.jobscheduler.spi.ScheduledJobParser;
+import org.opensearch.jobscheduler.spi.ScheduledJobRunner;
 import org.opensearch.ml.action.agents.DeleteAgentTransportAction;
 import org.opensearch.ml.action.agents.GetAgentTransportAction;
 import org.opensearch.ml.action.agents.TransportRegisterAgentAction;
@@ -130,6 +136,7 @@ import org.opensearch.ml.breaker.MLCircuitBreakerService;
 import org.opensearch.ml.cluster.DiscoveryNodeHelper;
 import org.opensearch.ml.cluster.MLCommonsClusterEventListener;
 import org.opensearch.ml.cluster.MLCommonsClusterManagerEventListener;
+import org.opensearch.ml.common.CommonValue;
 import org.opensearch.ml.common.FunctionName;
 import org.opensearch.ml.common.input.execute.anomalylocalization.AnomalyLocalizationInput;
 import org.opensearch.ml.common.input.execute.metricscorrelation.MetricsCorrelationInput;
@@ -236,7 +243,8 @@ import org.opensearch.ml.engine.tools.VisualizationsTool;
 import org.opensearch.ml.engine.utils.AgentModelsSearcher;
 import org.opensearch.ml.helper.ConnectorAccessControlHelper;
 import org.opensearch.ml.helper.ModelAccessControlHelper;
-import org.opensearch.ml.jobs.MLBatchTaskUpdateJobRunner;
+import org.opensearch.ml.jobs.MLJobParameter;
+import org.opensearch.ml.jobs.MLJobRunner;
 import org.opensearch.ml.memory.ConversationalMemoryHandler;
 import org.opensearch.ml.memory.action.conversation.CreateConversationAction;
 import org.opensearch.ml.memory.action.conversation.CreateConversationTransportAction;
@@ -334,6 +342,8 @@ import org.opensearch.ml.stats.MLClusterLevelStat;
 import org.opensearch.ml.stats.MLNodeLevelStat;
 import org.opensearch.ml.stats.MLStat;
 import org.opensearch.ml.stats.MLStats;
+import org.opensearch.ml.stats.otel.counters.MLAdoptionMetricsCounter;
+import org.opensearch.ml.stats.otel.counters.MLOperationalMetricsCounter;
 import org.opensearch.ml.stats.suppliers.CounterSupplier;
 import org.opensearch.ml.stats.suppliers.IndexStatusSupplier;
 import org.opensearch.ml.task.MLExecuteTaskRunner;
@@ -355,6 +365,7 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.SearchPipelinePlugin;
 import org.opensearch.plugins.SearchPlugin;
 import org.opensearch.plugins.SystemIndexPlugin;
+import org.opensearch.plugins.TelemetryAwarePlugin;
 import org.opensearch.remote.metadata.client.SdkClient;
 import org.opensearch.remote.metadata.client.impl.SdkClientFactory;
 import org.opensearch.repositories.RepositoriesService;
@@ -368,6 +379,8 @@ import org.opensearch.searchpipelines.questionanswering.generative.GenerativeQAP
 import org.opensearch.searchpipelines.questionanswering.generative.GenerativeQARequestProcessor;
 import org.opensearch.searchpipelines.questionanswering.generative.GenerativeQAResponseProcessor;
 import org.opensearch.searchpipelines.questionanswering.generative.ext.GenerativeQAParamExtBuilder;
+import org.opensearch.telemetry.metrics.MetricsRegistry;
+import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
@@ -386,7 +399,9 @@ public class MachineLearningPlugin extends Plugin
         SearchPipelinePlugin,
         ExtensiblePlugin,
         IngestPlugin,
-        SystemIndexPlugin {
+        SystemIndexPlugin,
+        TelemetryAwarePlugin,
+        JobSchedulerExtension {
     public static final String ML_THREAD_POOL_PREFIX = "thread_pool.ml_commons.";
     public static final String GENERAL_THREAD_POOL = "opensearch_ml_general";
     public static final String SDK_CLIENT_THREAD_POOL = "opensearch_ml_sdkclient";
@@ -398,6 +413,8 @@ public class MachineLearningPlugin extends Plugin
     public static final String REGISTER_THREAD_POOL = "opensearch_ml_register";
     public static final String DEPLOY_THREAD_POOL = "opensearch_ml_deploy";
     public static final String ML_BASE_URI = "/_plugins/_ml";
+
+    public static final String ML_COMMONS_JOBS_TYPE = "opensearch_ml_commons_jobs";
 
     private MLStats mlStats;
     private MLModelCacheHelper modelCacheHelper;
@@ -440,14 +457,9 @@ public class MachineLearningPlugin extends Plugin
     private Map<String, Tool.Factory> toolFactories;
     private ScriptService scriptService;
     private Encryptor encryptor;
-
     private McpToolsHelper mcpToolsHelper;
 
-    public MachineLearningPlugin(Settings settings) {
-        // Handle this here as this feature is tied to Search/Query API, not to a ml-common API
-        // and as such, it can't be lazy-loaded when a ml-commons API is invoked.
-        this.ragSearchPipelineEnabled = MLCommonsSettings.ML_COMMONS_RAG_PIPELINE_FEATURE_ENABLED.get(settings);
-    }
+    public MachineLearningPlugin() {}
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
@@ -540,7 +552,9 @@ public class MachineLearningPlugin extends Plugin
         NodeEnvironment nodeEnvironment,
         NamedWriteableRegistry namedWriteableRegistry,
         IndexNameExpressionResolver indexNameExpressionResolver,
-        Supplier<RepositoriesService> repositoriesServiceSupplier
+        Supplier<RepositoriesService> repositoriesServiceSupplier,
+        Tracer tracer,
+        MetricsRegistry metricsRegistry
     ) {
         this.indexUtils = new IndexUtils(client, clusterService);
         this.client = client;
@@ -762,7 +776,9 @@ public class MachineLearningPlugin extends Plugin
             mlModelManager,
             mlTaskManager,
             modelCacheHelper,
-            mlModelAutoRedeployer
+            mlModelAutoRedeployer,
+            client,
+            mlFeatureEnabledSetting
         );
         MLCommonsClusterManagerEventListener clusterManagerEventListener = new MLCommonsClusterManagerEventListener(
             clusterService,
@@ -777,14 +793,14 @@ public class MachineLearningPlugin extends Plugin
             mlFeatureEnabledSetting
         );
 
-        // TODO move this into MLFeatureEnabledSetting
-        // search processor factories below will get BooleanSupplier that supplies the
-        // current value being updated through this.
-        clusterService
-            .getClusterSettings()
-            .addSettingsUpdateConsumer(MLCommonsSettings.ML_COMMONS_RAG_PIPELINE_FEATURE_ENABLED, it -> ragSearchPipelineEnabled = it);
+        MLJobRunner
+            .getInstance()
+            .initialize(clusterService, threadPool, client, sdkClient, connectorAccessControlHelper, mlFeatureEnabledSetting);
 
-        MLBatchTaskUpdateJobRunner.getJobRunnerInstance().initialize(clusterService, threadPool, client);
+        if (mlFeatureEnabledSetting.isMetricCollectionEnabled()) {
+            MLOperationalMetricsCounter.initialize(clusterService.getClusterName().toString(), metricsRegistry, mlFeatureEnabledSetting);
+            MLAdoptionMetricsCounter.initialize(clusterService.getClusterName().toString(), metricsRegistry, mlFeatureEnabledSetting);
+        }
 
         mcpToolsHelper = new McpToolsHelper(client, threadPool, toolFactoryWrapper);
         McpAsyncServerHolder.init(mlIndicesHandler, mcpToolsHelper);
@@ -1078,7 +1094,9 @@ public class MachineLearningPlugin extends Plugin
                 RCFSummarizeParams.XCONTENT_REGISTRY,
                 LogisticRegressionParams.XCONTENT_REGISTRY,
                 TextEmbeddingModelConfig.XCONTENT_REGISTRY,
-                AsymmetricTextEmbeddingParameters.XCONTENT_REGISTRY
+                AsymmetricTextEmbeddingParameters.XCONTENT_REGISTRY,
+                AsymmetricTextEmbeddingParameters.XCONTENT_REGISTRY_SPARSE_ENCODING,
+                AsymmetricTextEmbeddingParameters.XCONTENT_REGISTRY_SPARSE_TOKENIZE
             );
     }
 
@@ -1138,7 +1156,9 @@ public class MachineLearningPlugin extends Plugin
                 MLCommonsSettings.REMOTE_METADATA_REGION,
                 MLCommonsSettings.REMOTE_METADATA_SERVICE_NAME,
                 MLCommonsSettings.ML_COMMONS_MCP_CONNECTOR_ENABLED,
-                MLCommonsSettings.ML_COMMONS_MCP_SERVER_ENABLED
+                MLCommonsSettings.ML_COMMONS_MCP_SERVER_ENABLED,
+                MLCommonsSettings.ML_COMMONS_METRIC_COLLECTION_ENABLED,
+                MLCommonsSettings.ML_COMMONS_STATIC_METRIC_COLLECTION_ENABLED
             );
         return settings;
     }
@@ -1181,7 +1201,7 @@ public class MachineLearningPlugin extends Plugin
         requestProcessors
             .put(
                 GenerativeQAProcessorConstants.REQUEST_PROCESSOR_TYPE,
-                new GenerativeQARequestProcessor.Factory(() -> this.ragSearchPipelineEnabled)
+                new GenerativeQARequestProcessor.Factory(this.mlFeatureEnabledSetting)
             );
         requestProcessors
             .put(
@@ -1198,7 +1218,7 @@ public class MachineLearningPlugin extends Plugin
         responseProcessors
             .put(
                 GenerativeQAProcessorConstants.RESPONSE_PROCESSOR_TYPE,
-                new GenerativeQAResponseProcessor.Factory(this.client, () -> this.ragSearchPipelineEnabled)
+                new GenerativeQAResponseProcessor.Factory(this.client, this.mlFeatureEnabledSetting)
             );
 
         responseProcessors
@@ -1257,6 +1277,9 @@ public class MachineLearningPlugin extends Plugin
         systemIndexDescriptors.add(new SystemIndexDescriptor(ML_MEMORY_META_INDEX, "ML Commons Memory Meta Index"));
         systemIndexDescriptors.add(new SystemIndexDescriptor(ML_MEMORY_MESSAGE_INDEX, "ML Commons Memory Message Index"));
         systemIndexDescriptors.add(new SystemIndexDescriptor(ML_STOP_WORDS_INDEX, "ML Commons Stop Words Index"));
+        systemIndexDescriptors.add(new SystemIndexDescriptor(MCP_SESSION_MANAGEMENT_INDEX, "ML Commons MCP session management Index"));
+        systemIndexDescriptors.add(new SystemIndexDescriptor(MCP_TOOLS_INDEX, "ML Commons MCP tools Index"));
+        systemIndexDescriptors.add(new SystemIndexDescriptor(ML_JOBS_INDEX, "ML Commons Jobs Index"));
         return systemIndexDescriptors;
     }
 
@@ -1306,5 +1329,24 @@ public class MachineLearningPlugin extends Plugin
                 )
             );
         return factories;
+    }
+
+    public String getJobType() {
+        return ML_COMMONS_JOBS_TYPE;
+    }
+
+    @Override
+    public String getJobIndex() {
+        return CommonValue.ML_JOBS_INDEX;
+    }
+
+    @Override
+    public ScheduledJobRunner getJobRunner() {
+        return MLJobRunner.getInstance();
+    }
+
+    @Override
+    public ScheduledJobParser getJobParser() {
+        return (parser, id, jobDocVersion) -> MLJobParameter.parse(parser);
     }
 }

@@ -17,9 +17,11 @@ import static org.mockito.Mockito.when;
 import static org.opensearch.ml.common.CommonValue.MCP_CONNECTORS_FIELD;
 import static org.opensearch.ml.common.CommonValue.MCP_CONNECTOR_ID_FIELD;
 import static org.opensearch.ml.common.CommonValue.TENANT_ID_FIELD;
+import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.DEFAULT_DATETIME_PREFIX;
 import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.LLM_FINISH_REASON_PATH;
 import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.LLM_FINISH_REASON_TOOL_USE;
 import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.LLM_GEN_INPUT;
+import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.LLM_INTERFACE_BEDROCK_CONVERSE_CLAUDE;
 import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.LLM_RESPONSE_EXCLUDE_PATH;
 import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.LLM_RESPONSE_FILTER;
 import static org.opensearch.ml.engine.algorithms.agent.AgentUtils.PROMPT_PREFIX;
@@ -79,6 +81,8 @@ import org.opensearch.ml.engine.MLEngineClassLoader;
 import org.opensearch.ml.engine.MLStaticMockBase;
 import org.opensearch.ml.engine.algorithms.remote.McpConnectorExecutor;
 import org.opensearch.ml.engine.encryptor.Encryptor;
+import org.opensearch.ml.engine.function_calling.FunctionCalling;
+import org.opensearch.ml.engine.function_calling.FunctionCallingFactory;
 import org.opensearch.ml.engine.tools.McpSseTool;
 import org.opensearch.remote.metadata.client.GetDataObjectRequest;
 import org.opensearch.remote.metadata.client.GetDataObjectResponse;
@@ -556,7 +560,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
                 )
                 .build();
             Map<String, String> output = AgentUtils
-                .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList());
+                .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList(), null);
             for (String key : entry.getValue().keySet()) {
                 Assert.assertEquals(entry.getValue().get(key), output.get(key));
             }
@@ -586,7 +590,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
         Map<String, String> output = AgentUtils
-            .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList());
+            .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList(), null);
         Assert.assertEquals(3, output.size());
         Assert.assertEquals(thought, output.get(THOUGHT));
         Assert.assertEquals("VectorDBTool", output.get(ACTION));
@@ -620,7 +624,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
         Map<String, String> output = AgentUtils
-            .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList());
+            .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList(), null);
         Assert.assertEquals(2, output.size());
         Assert.assertFalse(output.containsKey(THOUGHT));
         Assert.assertFalse(output.containsKey(ACTION));
@@ -650,7 +654,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
         Map<String, String> output = AgentUtils
-            .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList());
+            .parseLLMOutput(Collections.emptyMap(), modelTensoOutput, null, tools, Collections.emptyList(), null);
         Assert.assertEquals(3, output.size());
         Assert.assertEquals(thought, output.get(THOUGHT));
         Assert.assertFalse(output.containsKey(ACTION));
@@ -821,7 +825,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             .build();
 
         Map<String, String> output1 = AgentUtils
-            .parseLLMOutput(parameters, modelTensorOutput1, null, Set.of("ListIndexTool"), new ArrayList<>());
+            .parseLLMOutput(parameters, modelTensorOutput1, null, Set.of("ListIndexTool"), new ArrayList<>(), null);
 
         Assert.assertEquals("", output1.get(THOUGHT));
         Assert.assertEquals("ListIndexTool", output1.get(ACTION));
@@ -871,7 +875,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             .build();
 
         Map<String, String> output2 = AgentUtils
-            .parseLLMOutput(parameters, modelTensorOutput2, null, Set.of("IndexMappingTool"), new ArrayList<>());
+            .parseLLMOutput(parameters, modelTensorOutput2, null, Set.of("IndexMappingTool"), new ArrayList<>(), null);
 
         Assert.assertEquals("", output2.get(THOUGHT));
         Assert.assertEquals("IndexMappingTool", output2.get(ACTION));
@@ -895,7 +899,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
 
-        Map<String, String> output3 = AgentUtils.parseLLMOutput(parameters, modelTensorOutput3, null, Set.of(), new ArrayList<>());
+        Map<String, String> output3 = AgentUtils.parseLLMOutput(parameters, modelTensorOutput3, null, Set.of(), new ArrayList<>(), null);
 
         Assert.assertNull(output3.get(ACTION));
         Assert.assertNull(output3.get(ACTION_INPUT));
@@ -970,7 +974,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             .build();
 
         Map<String, String> output1 = AgentUtils
-            .parseLLMOutput(parameters, modelTensorOutput1, null, Set.of("ListIndexTool"), new ArrayList<>());
+            .parseLLMOutput(parameters, modelTensorOutput1, null, Set.of("ListIndexTool"), new ArrayList<>(), null);
 
         Assert.assertEquals("", output1.get(THOUGHT));
         Assert.assertEquals("ListIndexTool", output1.get(ACTION));
@@ -1023,7 +1027,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             .build();
 
         Map<String, String> output2 = AgentUtils
-            .parseLLMOutput(parameters, modelTensorOutput2, null, Set.of("IndexMappingTool"), new ArrayList<>());
+            .parseLLMOutput(parameters, modelTensorOutput2, null, Set.of("IndexMappingTool"), new ArrayList<>(), null);
 
         Assert.assertEquals("", output2.get(THOUGHT));
         Assert.assertEquals("IndexMappingTool", output2.get(ACTION));
@@ -1047,7 +1051,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
 
-        Map<String, String> output3 = AgentUtils.parseLLMOutput(parameters, modelTensorOutput3, null, Set.of(), new ArrayList<>());
+        Map<String, String> output3 = AgentUtils.parseLLMOutput(parameters, modelTensorOutput3, null, Set.of(), new ArrayList<>(), null);
 
         Assert.assertNull(output3.get(ACTION));
         Assert.assertNull(output3.get(ACTION_INPUT));
@@ -1111,7 +1115,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             .build();
 
         Map<String, String> output1 = AgentUtils
-            .parseLLMOutput(parameters, modelTensorOutput1, null, Set.of("ListIndexTool"), new ArrayList<>());
+            .parseLLMOutput(parameters, modelTensorOutput1, null, Set.of("ListIndexTool"), new ArrayList<>(), null);
 
         Assert.assertEquals("", output1.get(THOUGHT));
         Assert.assertEquals("ListIndexTool", output1.get(ACTION));
@@ -1154,7 +1158,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             .build();
 
         Map<String, String> output2 = AgentUtils
-            .parseLLMOutput(parameters, modelTensorOutput2, null, Set.of("IndexMappingTool"), new ArrayList<>());
+            .parseLLMOutput(parameters, modelTensorOutput2, null, Set.of("IndexMappingTool"), new ArrayList<>(), null);
 
         Assert.assertEquals("", output2.get(THOUGHT));
         Assert.assertEquals("IndexMappingTool", output2.get(ACTION));
@@ -1196,7 +1200,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
 
-        Map<String, String> output3 = AgentUtils.parseLLMOutput(parameters, modelTensorOutput3, null, Set.of(), new ArrayList<>());
+        Map<String, String> output3 = AgentUtils.parseLLMOutput(parameters, modelTensorOutput3, null, Set.of(), new ArrayList<>(), null);
 
         Assert.assertNull(output3.get(ACTION));
         Assert.assertNull(output3.get(ACTION_INPUT));
@@ -1434,7 +1438,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
 
-        Map<String, String> output = AgentUtils.parseLLMOutput(parameters, modelTensorOutput, null, Set.of(), new ArrayList<>());
+        Map<String, String> output = AgentUtils.parseLLMOutput(parameters, modelTensorOutput, null, Set.of(), new ArrayList<>(), null);
 
         Assert.assertTrue(output.containsKey(THOUGHT_RESPONSE));
         Assert.assertFalse(output.get(THOUGHT_RESPONSE).contains("exclude_field"));
@@ -1457,7 +1461,7 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
 
-        Map<String, String> output = AgentUtils.parseLLMOutput(new HashMap<>(), modelTensorOutput, null, Set.of(), new ArrayList<>());
+        Map<String, String> output = AgentUtils.parseLLMOutput(new HashMap<>(), modelTensorOutput, null, Set.of(), new ArrayList<>(), null);
 
         Assert.assertTrue(output.containsKey(THOUGHT_RESPONSE));
         Assert.assertEquals("{}", output.get(THOUGHT_RESPONSE));
@@ -1492,7 +1496,64 @@ public class AgentUtilsTest extends MLStaticMockBase {
             )
             .build();
 
-        Map<String, String> output = AgentUtils.parseLLMOutput(parameters, modelTensorOutput, null, Set.of("test_tool"), new ArrayList<>());
+        Map<String, String> output = AgentUtils
+            .parseLLMOutput(parameters, modelTensorOutput, null, Set.of("test_tool"), new ArrayList<>(), null);
+
+        Assert.assertEquals("test_tool", output.get(ACTION));
+        Assert.assertEquals("test_input", output.get(ACTION_INPUT));
+        Assert.assertEquals("test_id", output.get(TOOL_CALL_ID));
+    }
+
+    @Test
+    public void testParseLLMOutput_WithFunctionCalling() {
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put(TOOL_CALLS_PATH, "$.tool_calls");
+        parameters.put(TOOL_CALLS_TOOL_NAME, "name");
+        parameters.put(TOOL_CALLS_TOOL_INPUT, "input");
+        parameters.put(TOOL_CALL_ID_PATH, "id");
+        parameters.put(LLM_RESPONSE_FILTER, "$.response");
+        parameters.put(LLM_FINISH_REASON_PATH, "$.finish_reason");
+        parameters.put(LLM_FINISH_REASON_TOOL_USE, "tool_use");
+
+        Map<String, Object> dataAsMap = new HashMap<>();
+        dataAsMap
+            .put(
+                "output",
+                Map
+                    .of(
+                        "message",
+                        Map
+                            .of(
+                                "content",
+                                List
+                                    .of(
+                                        Map.of("text", "test"),
+                                        Map.of("toolUse", Map.of("name", "test_tool", "input", "test_input", "toolUseId", "test_id"))
+                                    )
+                            )
+                    )
+            );
+        dataAsMap.put("stopReason", "tool_use");
+
+        ModelTensorOutput modelTensorOutput = ModelTensorOutput
+            .builder()
+            .mlModelOutputs(
+                List
+                    .of(
+                        ModelTensors
+                            .builder()
+                            .mlModelTensors(List.of(ModelTensor.builder().name("response").dataAsMap(dataAsMap).build()))
+                            .build()
+                    )
+            )
+            .build();
+
+        FunctionCalling functionCalling = FunctionCallingFactory.create(LLM_INTERFACE_BEDROCK_CONVERSE_CLAUDE);
+        Assert.assertNotNull(functionCalling);
+        functionCalling.configure(parameters);
+
+        Map<String, String> output = AgentUtils
+            .parseLLMOutput(parameters, modelTensorOutput, null, Set.of("test_tool"), new ArrayList<>(), functionCalling);
 
         Assert.assertEquals("test_tool", output.get(ACTION));
         Assert.assertEquals("test_input", output.get(ACTION_INPUT));
@@ -1604,5 +1665,31 @@ public class AgentUtilsTest extends MLStaticMockBase {
         MLToolSpec toolSpec = MLToolSpec.builder().type("non_existent_tool").name("TestTool").build();
 
         assertThrows(IllegalArgumentException.class, () -> AgentUtils.createTool(toolFactories, new HashMap<>(), toolSpec, "test_tenant"));
+    }
+
+    @Test
+    public void testGetCurrentDateTime_WithInvalidFormats() {
+        // null
+        String result = AgentUtils.getCurrentDateTime(null);
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.startsWith(DEFAULT_DATETIME_PREFIX));
+
+        // empty
+        result = AgentUtils.getCurrentDateTime("");
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.startsWith(DEFAULT_DATETIME_PREFIX));
+
+        // invalid
+        result = AgentUtils.getCurrentDateTime("invalid-format");
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.startsWith(DEFAULT_DATETIME_PREFIX));
+    }
+
+    @Test
+    public void testGetCurrentDateTime_WithValidFormat() {
+        String result = AgentUtils.getCurrentDateTime("EEEE, MMMM d, yyyy 'at' h:mm a z");
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.startsWith(DEFAULT_DATETIME_PREFIX));
+        Assert.assertTrue(result.contains("UTC"));
     }
 }

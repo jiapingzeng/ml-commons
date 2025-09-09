@@ -256,6 +256,9 @@ import org.opensearch.ml.engine.tools.ListIndexTool;
 import org.opensearch.ml.engine.tools.MLModelTool;
 import org.opensearch.ml.engine.tools.McpSseTool;
 import org.opensearch.ml.engine.tools.QueryPlanningTool;
+import org.opensearch.ml.engine.tools.RemoteIndexMappingTool;
+import org.opensearch.ml.engine.tools.RemoteListIndexTool;
+import org.opensearch.ml.engine.tools.RemoteSearchIndexTool;
 import org.opensearch.ml.engine.tools.SearchIndexTool;
 import org.opensearch.ml.engine.tools.VisualizationsTool;
 import org.opensearch.ml.engine.utils.AgentModelsSearcher;
@@ -768,6 +771,9 @@ public class MachineLearningPlugin extends Plugin
         toolFactories.put(VisualizationsTool.TYPE, VisualizationsTool.Factory.getInstance());
         toolFactories.put(ConnectorTool.TYPE, ConnectorTool.Factory.getInstance());
         toolFactories.put(QueryPlanningTool.TYPE, QueryPlanningTool.Factory.getInstance());
+        toolFactories.put(RemoteListIndexTool.TYPE, RemoteListIndexTool.Factory.getInstance());
+        toolFactories.put(RemoteSearchIndexTool.TYPE, RemoteSearchIndexTool.Factory.getInstance());
+        toolFactories.put(RemoteIndexMappingTool.TYPE, RemoteIndexMappingTool.Factory.getInstance());
         if (externalToolFactories != null) {
             toolFactories.putAll(externalToolFactories);
         }

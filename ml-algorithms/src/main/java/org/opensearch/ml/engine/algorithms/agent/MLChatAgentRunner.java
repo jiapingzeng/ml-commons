@@ -183,7 +183,6 @@ public class MLChatAgentRunner implements MLAgentRunner {
 
     @Override
     public void run(MLAgent mlAgent, Map<String, String> inputParams, ActionListener<Object> listener, TransportChannel channel) {
-        this.streamingWrapper = new StreamingWrapper(channel, client);
         Map<String, String> params = new HashMap<>();
         if (mlAgent.getParameters() != null) {
             params.putAll(mlAgent.getParameters());
@@ -195,6 +194,7 @@ public class MLChatAgentRunner implements MLAgentRunner {
         }
 
         params.putAll(inputParams);
+        this.streamingWrapper = new StreamingWrapper(channel, client, params);
 
         String llmInterface = params.get(LLM_INTERFACE);
         FunctionCalling functionCalling = FunctionCallingFactory.create(llmInterface);

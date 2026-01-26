@@ -387,7 +387,7 @@ public class MLAgentTest {
     @Test
     public void constructor_InvalidAgentType() {
         exceptionRule.expect(IllegalArgumentException.class);
-        exceptionRule.expectMessage(" is not a valid Agent Type");
+        exceptionRule.expectMessage("INVALID_TYPE is not a valid Agent Type");
 
         new MLAgent(
             "test_name",

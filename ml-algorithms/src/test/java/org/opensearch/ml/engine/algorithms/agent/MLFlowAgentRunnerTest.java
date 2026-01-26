@@ -419,32 +419,6 @@ public class MLFlowAgentRunnerTest {
         assertEquals(SECOND_TOOL_RESPONSE, agentOutput.get(0).getResult());
     }
 
-    // @Test
-    // public void testUpdateMemory() {
-    // // Mocking MLMemorySpec
-    // MLMemorySpec memorySpec = mock(MLMemorySpec.class);
-    // when(memorySpec.getType()).thenReturn("memoryType");
-    //
-    // // Mocking Memory Factory and Memory
-    //
-    // ConversationIndexMemory.Factory memoryFactory = new ConversationIndexMemory.Factory();
-    // memoryFactory.init(client, indicesHandler, memoryManager);
-    // ActionListener<ConversationIndexMemory> listener = mock(ActionListener.class);
-    // memoryFactory.create(Map.of(MEMORY_ID, "123", MEMORY_NAME, "name", APP_TYPE, "app"), listener);
-    //
-    // verify(listener).onResponse(isA(ConversationIndexMemory.class));
-    //
-    // Map<String, Memory.Factory> memoryFactoryMap = new HashMap<>();
-    // memoryFactoryMap.put("memoryType", memoryFactory);
-    // mlFlowAgentRunner.setMemoryFactoryMap(memoryFactoryMap);
-    //
-    // // Execute the method under test
-    // mlFlowAgentRunner.updateMemory(new HashMap<>(), memorySpec, "memoryId", "interactionId");
-    //
-    // // Asserting that the Memory Manager's updateInteraction method was called
-    // verify(memoryManager).updateInteraction(anyString(), anyMap(), any(ActionListener.class));
-    // }
-
     @Test
     public void testRunWithUpdateFailure() {
         final Map<String, String> params = new HashMap<>();

@@ -9,6 +9,7 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 import org.opensearch.ml.common.agent.BedrockConverseModelProvider;
+import org.opensearch.ml.common.agent.OpenAIChatModelProvider;
 
 public class ModelProviderFactoryTest {
 
@@ -52,6 +53,45 @@ public class ModelProviderFactoryTest {
     }
 
     @Test
+    public void testGetProvider_OpenAIChat() {
+        // Arrange
+        String providerType = "openai/v1/chat/completions";
+
+        // Act
+        ModelProvider provider = ModelProviderFactory.getProvider(providerType);
+
+        // Assert
+        assertNotNull(provider);
+        assertTrue(provider instanceof OpenAIChatModelProvider);
+    }
+
+    @Test
+    public void testGetProvider_OpenAIChat_CaseInsensitive() {
+        // Arrange
+        String providerType = "OPENAI/V1/CHAT/COMPLETIONS";
+
+        // Act
+        ModelProvider provider = ModelProviderFactory.getProvider(providerType);
+
+        // Assert
+        assertNotNull(provider);
+        assertTrue(provider instanceof OpenAIChatModelProvider);
+    }
+
+    @Test
+    public void testGetProvider_OpenAIChat_MixedCase() {
+        // Arrange
+        String providerType = "OpenAI/v1/Chat/Completions";
+
+        // Act
+        ModelProvider provider = ModelProviderFactory.getProvider(providerType);
+
+        // Assert
+        assertNotNull(provider);
+        assertTrue(provider instanceof OpenAIChatModelProvider);
+    }
+
+    @Test
     public void testGetProvider_UnsupportedProvider() {
         // Arrange
         String providerType = "unsupported/provider";
@@ -92,7 +132,7 @@ public class ModelProviderFactoryTest {
     }
 
     @Test
-    public void testGetProvider_VerifyProviderInterface() {
+    public void testGetProvider_VerifyProviderInterface_Bedrock() {
         // Arrange
         String providerType = "bedrock/converse";
 
@@ -102,5 +142,33 @@ public class ModelProviderFactoryTest {
         // Assert
         assertNotNull(provider);
         assertEquals("bedrock/converse/claude", provider.getLLMInterface());
+    }
+
+    @Test
+    public void testGetProvider_VerifyProviderInterface_OpenAI() {
+        // Arrange
+        String providerType = "openai/v1/chat/completions";
+
+        // Act
+        ModelProvider provider = ModelProviderFactory.getProvider(providerType);
+
+        // Assert
+        assertNotNull(provider);
+        assertEquals("openai/v1/chat/completions", provider.getLLMInterface());
+    }
+
+    @Test
+    public void testGetProvider_OpenAI_ReturnsNewInstance() {
+        // Arrange
+        String providerType = "openai/v1/chat/completions";
+
+        // Act
+        ModelProvider provider1 = ModelProviderFactory.getProvider(providerType);
+        ModelProvider provider2 = ModelProviderFactory.getProvider(providerType);
+
+        // Assert
+        assertNotNull(provider1);
+        assertNotNull(provider2);
+        assertNotSame("Factory should return new instances", provider1, provider2);
     }
 }

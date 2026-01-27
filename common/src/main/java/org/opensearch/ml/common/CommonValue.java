@@ -27,6 +27,7 @@ public class CommonValue {
     public static final String MASTER_KEY = "master_key";
     public static final String CREATE_TIME_FIELD = "create_time";
     public static final String LAST_UPDATE_TIME_FIELD = "last_update_time";
+    public static final String AGENTIC_MEMORY_THREAD_POOL = "opensearch_ml_agentic_memory";
 
     public static final String BOX_TYPE_KEY = "box_type";
     // hot node
@@ -117,6 +118,7 @@ public class CommonValue {
     public static final String CLIENT_CONFIG_FIELD = "client_config";
     public static final String URL_FIELD = "url";
     public static final String HEADERS_FIELD = "headers";
+    public static final String CONNECTOR_ACTION_FIELD = "connector_action";
 
     // MCP Constants
     public static final String MCP_TOOL_NAME_FIELD = "name";

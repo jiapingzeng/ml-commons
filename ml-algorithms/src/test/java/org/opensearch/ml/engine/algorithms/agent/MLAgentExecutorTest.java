@@ -55,10 +55,10 @@ import org.opensearch.ml.common.input.execute.agent.ContentBlock;
 import org.opensearch.ml.common.input.execute.agent.ContentType;
 import org.opensearch.ml.common.input.execute.agent.InputType;
 import org.opensearch.ml.common.input.execute.agent.Message;
+import org.opensearch.ml.common.memory.Memory;
 import org.opensearch.ml.common.output.Output;
 import org.opensearch.ml.common.output.model.ModelTensorOutput;
 import org.opensearch.ml.common.settings.MLFeatureEnabledSetting;
-import org.opensearch.ml.common.spi.memory.Memory;
 import org.opensearch.ml.common.spi.tools.Tool;
 import org.opensearch.ml.engine.encryptor.Encryptor;
 import org.opensearch.ml.engine.memory.ConversationIndexMemory;
@@ -214,8 +214,7 @@ public class MLAgentExecutorTest {
 
     @Test
     public void testExecuteWithNullParameters() {
-        RemoteInferenceInputDataSet dataset = RemoteInferenceInputDataSet.builder().build();
-        AgentMLInput agentInput = new AgentMLInput("test-agent", null, FunctionName.AGENT, dataset);
+        AgentMLInput agentInput = new AgentMLInput("test-agent", null, FunctionName.AGENT, null);
 
         try {
             mlAgentExecutor.execute(agentInput, listener, channel);
@@ -624,7 +623,7 @@ public class MLAgentExecutorTest {
                     )
                 ),
             Map.of("test", "test"),
-            new MLMemorySpec("memoryType", "123", 0),
+            new MLMemorySpec("memoryType", "123", 0, null),
             Instant.EPOCH,
             Instant.EPOCH,
             "test",
@@ -737,7 +736,7 @@ public class MLAgentExecutorTest {
 
         List<Message> messages = Arrays.asList(userMessage, assistantMessage);
 
-        Mockito.when(memory.getConversationId()).thenReturn("conv-123");
+        Mockito.when(memory.getId()).thenReturn("conv-123");
         CreateInteractionResponse interaction = Mockito.mock(CreateInteractionResponse.class);
         Mockito.when(interaction.getId()).thenReturn("interaction-1");
         Mockito.doAnswer(invocation -> {
@@ -787,7 +786,7 @@ public class MLAgentExecutorTest {
 
         List<Message> messages = Arrays.asList(user1, assistant1, user2, assistant2);
 
-        Mockito.when(memory.getConversationId()).thenReturn("conv-456");
+        Mockito.when(memory.getId()).thenReturn("conv-456");
         CreateInteractionResponse interaction = Mockito.mock(CreateInteractionResponse.class);
         Mockito.when(interaction.getId()).thenReturn("interaction-1");
         Mockito.doAnswer(invocation -> {
@@ -836,7 +835,7 @@ public class MLAgentExecutorTest {
 
         List<Message> messages = Arrays.asList(user1, assistant1, user2);
 
-        Mockito.when(memory.getConversationId()).thenReturn("conv-789");
+        Mockito.when(memory.getId()).thenReturn("conv-789");
         CreateInteractionResponse interaction = Mockito.mock(CreateInteractionResponse.class);
         Mockito.when(interaction.getId()).thenReturn("interaction-1");
         Mockito.doAnswer(invocation -> {
@@ -879,7 +878,7 @@ public class MLAgentExecutorTest {
 
         List<Message> messages = Arrays.asList(userMessage, assistantMessage);
 
-        Mockito.when(memory.getConversationId()).thenReturn("conv-multi");
+        Mockito.when(memory.getId()).thenReturn("conv-multi");
         CreateInteractionResponse interaction = Mockito.mock(CreateInteractionResponse.class);
         Mockito.when(interaction.getId()).thenReturn("interaction-1");
         Mockito.doAnswer(invocation -> {
@@ -920,7 +919,7 @@ public class MLAgentExecutorTest {
 
         List<Message> messages = Arrays.asList(systemMessage, userMessage, assistantMessage);
 
-        Mockito.when(memory.getConversationId()).thenReturn("conv-system");
+        Mockito.when(memory.getId()).thenReturn("conv-system");
         CreateInteractionResponse interaction = Mockito.mock(CreateInteractionResponse.class);
         Mockito.when(interaction.getId()).thenReturn("interaction-1");
         Mockito.doAnswer(invocation -> {
@@ -957,7 +956,7 @@ public class MLAgentExecutorTest {
 
         List<Message> messages = Arrays.asList(userMessage, null, assistantMessage);
 
-        Mockito.when(memory.getConversationId()).thenReturn("conv-null");
+        Mockito.when(memory.getId()).thenReturn("conv-null");
         CreateInteractionResponse interaction = Mockito.mock(CreateInteractionResponse.class);
         Mockito.when(interaction.getId()).thenReturn("interaction-1");
         Mockito.doAnswer(invocation -> {

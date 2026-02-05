@@ -293,6 +293,33 @@ ext.resolvePluginFile = { pluginId ->
 def jobSchedulerFile  = resolvePluginFile("opensearch-job-scheduler")
 def securityPluginFile = resolvePluginFile("opensearch-security")
 
+// SQL plugin resolver - uses OPENSEARCH_SQL_PLUGIN_PATH environment variable
+def sqlPluginFile = provider(new Callable<RegularFile>() {
+    @Override
+    RegularFile call() throws Exception {
+        return new RegularFile() {
+            @Override
+            File getAsFile() {
+                def sqlPluginPath = System.getenv("OPENSEARCH_SQL_PLUGIN_PATH")
+                if (!sqlPluginPath) {
+                    return null  // SQL plugin is optional
+                }
+                def sqlPath = file("${sqlPluginPath}/plugin/build/distributions")
+                if (!sqlPath.exists()) {
+                    throw new GradleException("SQL plugin distribution directory not found at ${sqlPath}")
+                }
+                def sqlZip = sqlPath.listFiles()?.find { 
+                    it.name.endsWith('.zip') && it.name.contains(opensearch_build)
+                }
+                if (!sqlZip) {
+                    throw new GradleException("SQL plugin zip not found at ${sqlPath}. Run: cd ${sqlPluginPath} && ./gradlew :opensearch-sql-plugin:bundlePlugin")
+                }
+                return sqlZip
+            }
+        }
+    }
+})
+
 // Single authoritative cluster definition
 testClusters.integTest {
     testDistribution = "ARCHIVE"
@@ -358,10 +385,10 @@ testClusters.integTest {
         }))
     }
 
-    configureClusterPlugins(delegate, jobSchedulerFile, securityPluginFile, securityEnabled)
+    configureClusterPlugins(delegate, jobSchedulerFile, securityPluginFile, sqlPluginFile, securityEnabled)
 }
 
-def configureClusterPlugins(cluster, jobSchedZip, securityZip, securityEnabled) {
+def configureClusterPlugins(cluster, jobSchedZip, securityZip, sqlZip, securityEnabled) {
     // Enable attachable debugging if requested (prefer 'opensearch.debug'; also accept legacy 'cluster.debug')
     if (System.getProperty("opensearch.debug") != null || System.getProperty("cluster.debug") != null) {
         def debugPort = 5005
@@ -380,6 +407,19 @@ def configureClusterPlugins(cluster, jobSchedZip, securityZip, securityEnabled) 
         }
         // Install the plugin under test LAST
         plugin(project.tasks.bundlePlugin.archiveFile)
+        
+        // Install SQL plugin if OPENSEARCH_SQL_PLUGIN_PATH is set
+        if (sqlZip != null) {
+            try {
+                def sqlFile = sqlZip.get()
+                if (sqlFile != null && sqlFile.getAsFile() != null) {
+                    plugin(sqlZip)
+                }
+            } catch (Exception e) {
+                // SQL plugin is optional, continue without it
+                println "SQL plugin not available: ${e.message}"
+            }
+        }
 
         if (securityEnabled) {
             cluster.nodes.each { node ->

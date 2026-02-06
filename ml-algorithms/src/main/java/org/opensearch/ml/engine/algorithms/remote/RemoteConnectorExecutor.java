@@ -276,8 +276,7 @@ public interface RemoteConnectorExecutor {
                 getLogger().error("guardrails triggered for user input");
                 throw new IllegalArgumentException("guardrails triggered for user input");
             }
-            // Check for streaming first as invokeRemoteServiceWithRetry does not stream
-            // TODO: support streaming with retry policy
+            // Check for streaming first
             if (parameters.containsKey("stream")) {
                 String memoryId = parameters.get("memory_id");
                 String parentInteractionId = parameters.get("parent_interaction_id");
@@ -294,7 +293,11 @@ public interface RemoteConnectorExecutor {
                     memoryId,
                     parentInteractionId
                 );
-                invokeRemoteServiceStream(action, mlInput, parameters, payload, executionContext, streamListener);
+                if (getConnectorClientConfig().getMaxRetryTimes() != 0) {
+                    invokeRemoteServiceStreamWithRetry(action, mlInput, parameters, payload, executionContext, streamListener);
+                } else {
+                    invokeRemoteServiceStream(action, mlInput, parameters, payload, executionContext, streamListener);
+                }
             } else if (getConnectorClientConfig().getMaxRetryTimes() != 0) {
                 invokeRemoteServiceWithRetry(action, mlInput, parameters, payload, executionContext, actionListener);
             } else {
@@ -363,6 +366,43 @@ public interface RemoteConnectorExecutor {
     };
 
     void invokeRemoteService(
+    default void invokeRemoteServiceStreamWithRetry(
+        String action,
+        MLInput mlInput,
+        Map<String, String> parameters,
+        String payload,
+        ExecutionContext executionContext,
+        StreamPredictActionListener<MLTaskResponse, ?> streamListener
+    ) {
+        final RetryableAction<Void> invokeRemoteModelStreamAction = new RetryableStreamActionExtension(
+            getLogger(),
+            getClient().threadPool(),
+            TimeValue.timeValueMillis(getConnectorClientConfig().getRetryBackoffMillis()),
+            TimeValue.timeValueSeconds(getConnectorClientConfig().getRetryTimeoutSeconds()),
+            ActionListener.wrap(
+                v -> {
+                    // Success case - streaming already handled by streamListener
+                },
+                e -> {
+                    // Failure case - propagate error to streamListener
+                    streamListener.onFailure(e);
+                }
+            ),
+            getRetryBackoffPolicy(getConnectorClientConfig()),
+            RetryableStreamActionExtensionArgs
+                .builder()
+                .connectionExecutor(this)
+                .mlInput(mlInput)
+                .action(action)
+                .parameters(parameters)
+                .executionContext(executionContext)
+                .payload(payload)
+                .streamListener(streamListener)
+                .build()
+        );
+        invokeRemoteModelStreamAction.run();
+    };
+
         String action,
         MLInput mlInput,
         Map<String, String> parameters,
@@ -422,6 +462,51 @@ public interface RemoteConnectorExecutor {
         }
     }
 
+    static class RetryableStreamActionExtension extends RetryableAction<Void> {
+        private final RetryableStreamActionExtensionArgs args;
+        int retryTimes = 0;
+
+        RetryableStreamActionExtension(
+            Logger logger,
+            ThreadPool threadPool,
+            TimeValue initialDelay,
+            TimeValue timeoutValue,
+            ActionListener<Void> listener,
+            BackoffPolicy backoffPolicy,
+            RetryableStreamActionExtensionArgs args
+        ) {
+            super(logger, threadPool, initialDelay, timeoutValue, listener, backoffPolicy, RETRY_EXECUTOR);
+            this.args = args;
+        }
+
+        @Override
+        public void tryAction(ActionListener<Void> listener) {
+            // the listener here is RetryingListener
+            // If the request success, or can not retry, will call delegate listener
+            args.connectionExecutor
+                .invokeRemoteServiceStream(args.action, args.mlInput, args.parameters, args.payload, args.executionContext, args.streamListener);
+            // For streaming, we notify success immediately after invoking
+            // The actual streaming response is handled by streamListener
+            listener.onResponse(null);
+        }
+
+        @Override
+        public boolean shouldRetry(Exception e) {
+            Throwable cause = ExceptionsHelper.unwrapCause(e);
+            Integer maxRetryTimes = args.connectionExecutor.getConnectorClientConfig().getMaxRetryTimes();
+            boolean shouldRetry = cause instanceof RemoteConnectorThrottlingException;
+            if (++retryTimes > maxRetryTimes && maxRetryTimes != -1) {
+                shouldRetry = false;
+            }
+            if (shouldRetry) {
+                args.connectionExecutor
+                    .getLogger()
+                    .debug(String.format(Locale.ROOT, "The %d-th retry for invoke remote model stream", retryTimes), e);
+            }
+            return shouldRetry;
+        }
+    }
+
     @Builder
     class RetryableActionExtensionArgs {
         private final RemoteConnectorExecutor connectionExecutor;
@@ -431,4 +516,16 @@ public interface RemoteConnectorExecutor {
         private final ExecutionContext executionContext;
         private final String payload;
     }
+
+    @Builder
+    class RetryableStreamActionExtensionArgs {
+        private final RemoteConnectorExecutor connectionExecutor;
+        private final MLInput mlInput;
+        private final String action;
+        private final Map<String, String> parameters;
+        private final ExecutionContext executionContext;
+        private final String payload;
+        private final StreamPredictActionListener<MLTaskResponse, ?> streamListener;
+    }
 }
+

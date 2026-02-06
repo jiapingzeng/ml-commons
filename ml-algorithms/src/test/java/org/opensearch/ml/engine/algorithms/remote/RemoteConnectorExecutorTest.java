@@ -120,6 +120,28 @@ public class RemoteConnectorExecutorTest {
 
     private AwsConnectorExecutor getExecutor(Connector connector) {
         AwsConnectorExecutor executor = spy(new AwsConnectorExecutor(connector));
+    private Connector getConnectorWithRetry(Map<String, String> parameters, int maxRetryTimes) {
+        ConnectorAction predictAction = ConnectorAction
+            .builder()
+            .actionType(PREDICT)
+            .method("POST")
+            .url("http:///mock")
+            .requestBody("{\"input\": \"${parameters.input}\"}")
+            .build();
+        Map<String, String> credential = ImmutableMap
+            .of(ACCESS_KEY_FIELD, encryptor.encrypt("test_key", null), SECRET_KEY_FIELD, encryptor.encrypt("test_secret_key", null));
+        return AwsConnector
+            .awsConnectorBuilder()
+            .name("test connector")
+            .version("1")
+            .protocol("http")
+            .parameters(parameters)
+            .credential(credential)
+            .actions(Arrays.asList(predictAction))
+            .connectorClientConfig(new ConnectorClientConfig(10, 10, 10, 1, 1, maxRetryTimes, RetryBackoffPolicy.CONSTANT, null))
+            .build();
+    }
+
         Settings settings = Settings.builder().build();
         ThreadContext threadContext = new ThreadContext(settings);
         when(executor.getClient()).thenReturn(client);
@@ -473,5 +495,80 @@ public class RemoteConnectorExecutorTest {
 
         // Verify that invokeRemoteService is called
         Mockito.verify(executor, times(1)).invokeRemoteService(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    public void executePreparePayloadAndInvoke_StreamingWithRetry() {
+        Map<String, String> parameters = ImmutableMap.of(SERVICE_NAME_FIELD, "bedrock", REGION_FIELD, "us-west-2");
+        Connector connector = getConnectorWithRetry(parameters, 3);
+        AwsConnectorExecutor executor = getExecutor(connector);
+
+        Map<String, String> inputParams = new HashMap<>();
+        inputParams.put("input", "test input");
+        inputParams.put("stream", "true");
+
+        RemoteInferenceInputDataSet inputDataSet = RemoteInferenceInputDataSet
+            .builder()
+            .parameters(inputParams)
+            .actionType(PREDICT)
+            .build();
+        String actionType = inputDataSet.getActionType().toString();
+        MLInput mlInput = MLInput.builder().algorithm(FunctionName.TEXT_EMBEDDING).inputDataset(inputDataSet).build();
+
+        executor.preparePayloadAndInvoke(actionType, mlInput, null, actionListener);
+        Mockito.verify(executor, times(1)).invokeRemoteServiceStreamWithRetry(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    public void executePreparePayloadAndInvoke_StreamingWithoutRetry() {
+        Map<String, String> parameters = ImmutableMap.of(SERVICE_NAME_FIELD, "bedrock", REGION_FIELD, "us-west-2");
+        Connector connector = getConnectorWithRetry(parameters, 0);
+        AwsConnectorExecutor executor = getExecutor(connector);
+
+        Map<String, String> inputParams = new HashMap<>();
+        inputParams.put("input", "test input");
+        inputParams.put("stream", "true");
+
+        RemoteInferenceInputDataSet inputDataSet = RemoteInferenceInputDataSet
+            .builder()
+            .parameters(inputParams)
+            .actionType(PREDICT)
+            .build();
+        String actionType = inputDataSet.getActionType().toString();
+        MLInput mlInput = MLInput.builder().algorithm(FunctionName.TEXT_EMBEDDING).inputDataset(inputDataSet).build();
+
+        executor.preparePayloadAndInvoke(actionType, mlInput, null, actionListener);
+        Mockito.verify(executor, times(1)).invokeRemoteServiceStream(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    public void testRetryableStreamActionExtension_shouldRetry() {
+        Map<String, String> parameters = ImmutableMap.of(SERVICE_NAME_FIELD, "bedrock", REGION_FIELD, "us-west-2");
+        Connector connector = getConnectorWithRetry(parameters, 3);
+        AwsConnectorExecutor executor = getExecutor(connector);
+
+        RemoteConnectorExecutor.RetryableStreamActionExtensionArgs args = RemoteConnectorExecutor.RetryableStreamActionExtensionArgs
+            .builder()
+            .connectionExecutor(executor)
+            .mlInput(mock(MLInput.class))
+            .action("PREDICT")
+            .parameters(new HashMap<>())
+            .executionContext(new ExecutionContext(0))
+            .payload("{}")
+            .streamListener(mock(StreamPredictActionListener.class))
+            .build();
+
+        RemoteConnectorExecutor.RetryableStreamActionExtension retryableAction = 
+            new RemoteConnectorExecutor.RetryableStreamActionExtension(
+                executor.getLogger(),
+                threadPool,
+                TimeValue.timeValueMillis(100),
+                TimeValue.timeValueSeconds(10),
+                mock(ActionListener.class),
+                BackoffPolicy.constantBackoff(TimeValue.timeValueMillis(100), 5),
+                args
+            );
+
+        assertTrue(retryableAction.shouldRetry(new RemoteConnectorThrottlingException("throttled")));
     }
 }

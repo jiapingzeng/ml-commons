@@ -120,6 +120,28 @@ public class RemoteConnectorExecutorTest {
 
     private AwsConnectorExecutor getExecutor(Connector connector) {
         AwsConnectorExecutor executor = spy(new AwsConnectorExecutor(connector));
+    private Connector getConnectorWithRetry(Map<String, String> parameters, int maxRetryTimes) {
+        ConnectorAction predictAction = ConnectorAction
+            .builder()
+            .actionType(PREDICT)
+            .method("POST")
+            .url("http:///mock")
+            .requestBody("{\"input\": \"${parameters.input}\"}")
+            .build();
+        Map<String, String> credential = ImmutableMap
+            .of(ACCESS_KEY_FIELD, encryptor.encrypt("test_key", null), SECRET_KEY_FIELD, encryptor.encrypt("test_secret_key", null));
+        return AwsConnector
+            .awsConnectorBuilder()
+            .name("test connector")
+            .version("1")
+            .protocol("http")
+            .parameters(parameters)
+            .credential(credential)
+            .actions(Arrays.asList(predictAction))
+            .connectorClientConfig(new ConnectorClientConfig(10, 10, 10, 1, 1, maxRetryTimes, RetryBackoffPolicy.CONSTANT, null))
+            .build();
+    }
+
         Settings settings = Settings.builder().build();
         ThreadContext threadContext = new ThreadContext(settings);
         when(executor.getClient()).thenReturn(client);

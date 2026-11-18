@@ -24,6 +24,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.common.unit.ByteSizeValue;
 
@@ -426,6 +427,21 @@ public final class MLCommonsSettings {
         "The agentic search template APIs are not enabled. To enable, please update the setting "
             + ML_COMMONS_AGENTIC_SEARCH_TEMPLATE_ENABLED.getKey()
             + ". They are not yet supported when multi-tenancy is enabled.";
+
+    // Experimental agentic index ask/retrieve APIs. Disabled by default.
+    public static final Setting<Boolean> ML_COMMONS_AGENTIC_INDEX_ENABLED = Setting
+        .boolSetting(ML_PLUGIN_SETTING_PREFIX + "agentic_index_enabled", false, Setting.Property.NodeScope, Setting.Property.Dynamic);
+    public static final String ML_COMMONS_AGENTIC_INDEX_DISABLED_MESSAGE =
+        "The agentic index APIs are not enabled. To enable, please update the setting " + ML_COMMONS_AGENTIC_INDEX_ENABLED.getKey();
+    // Deadline of one agentic index request; also the upper bound of the request body "timeout".
+    public static final Setting<TimeValue> ML_COMMONS_AGENTIC_INDEX_TIMEOUT = Setting
+        .timeSetting(
+            ML_PLUGIN_SETTING_PREFIX + "agentic_index_timeout",
+            TimeValue.timeValueMinutes(2),
+            TimeValue.timeValueSeconds(1),
+            Setting.Property.NodeScope,
+            Setting.Property.Dynamic
+        );
 
     public static final Setting<Boolean> ML_COMMONS_CONNECTOR_PRIVATE_IP_ENABLED = Setting
         .boolSetting(

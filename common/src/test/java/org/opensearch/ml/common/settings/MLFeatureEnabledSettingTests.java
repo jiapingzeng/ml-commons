@@ -37,6 +37,7 @@ public class MLFeatureEnabledSettingTests {
                     MLCommonsSettings.ML_COMMONS_AGENT_FRAMEWORK_ENABLED,
                     MLCommonsSettings.ML_COMMONS_UNIFIED_AGENT_API_ENABLED,
                     MLCommonsSettings.ML_COMMONS_AGENTIC_SEARCH_TEMPLATE_ENABLED,
+                    MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_ENABLED,
                     MLCommonsSettings.ML_COMMONS_LOCAL_MODEL_ENABLED,
                     MLCommonsSettings.ML_COMMONS_CONNECTOR_PRIVATE_IP_ENABLED,
                     MLCommonsSettings.ML_COMMONS_CONTROLLER_ENABLED,

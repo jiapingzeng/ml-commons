@@ -66,6 +66,7 @@ import org.opensearch.jobscheduler.spi.utils.LockService;
 import org.opensearch.ml.action.IndexInsight.GetIndexInsightConfigTransportAction;
 import org.opensearch.ml.action.IndexInsight.GetIndexInsightTransportAction;
 import org.opensearch.ml.action.IndexInsight.PutIndexInsightConfigTransportAction;
+import org.opensearch.ml.action.agenticindex.TransportAgenticIndexAction;
 import org.opensearch.ml.action.agenticsearch.AgenticSearchTemplateService;
 import org.opensearch.ml.action.agenticsearch.DeleteAgenticSearchTemplateTransportAction;
 import org.opensearch.ml.action.agenticsearch.GetAgenticSearchTemplateTransportAction;
@@ -187,6 +188,7 @@ import org.opensearch.ml.common.transport.agent.MLAgentGetAction;
 import org.opensearch.ml.common.transport.agent.MLAgentUpdateAction;
 import org.opensearch.ml.common.transport.agent.MLRegisterAgentAction;
 import org.opensearch.ml.common.transport.agent.MLSearchAgentAction;
+import org.opensearch.ml.common.transport.agenticindex.MLAgenticIndexAction;
 import org.opensearch.ml.common.transport.agenticsearch.MLDeleteAgenticSearchTemplateAction;
 import org.opensearch.ml.common.transport.agenticsearch.MLGetAgenticSearchTemplateAction;
 import org.opensearch.ml.common.transport.agenticsearch.MLListAgenticSearchTemplatesAction;
@@ -345,6 +347,7 @@ import org.opensearch.ml.processor.MLInferenceIngestProcessor;
 import org.opensearch.ml.processor.MLInferenceSearchRequestProcessor;
 import org.opensearch.ml.processor.MLInferenceSearchResponseProcessor;
 import org.opensearch.ml.rest.RestMLAddMemoriesAction;
+import org.opensearch.ml.rest.RestMLAgenticIndexAction;
 import org.opensearch.ml.rest.RestMLCancelBatchJobAction;
 import org.opensearch.ml.rest.RestMLCreateConnectorAction;
 import org.opensearch.ml.rest.RestMLCreateContextManagementTemplateAction;
@@ -667,7 +670,8 @@ public class MachineLearningPlugin extends Plugin
                 new ActionHandler<>(MLGetAgenticSearchTemplateAction.INSTANCE, GetAgenticSearchTemplateTransportAction.class),
                 new ActionHandler<>(MLUpdateAgenticSearchTemplateAction.INSTANCE, UpdateAgenticSearchTemplateTransportAction.class),
                 new ActionHandler<>(MLListAgenticSearchTemplatesAction.INSTANCE, ListAgenticSearchTemplatesTransportAction.class),
-                new ActionHandler<>(MLDeleteAgenticSearchTemplateAction.INSTANCE, DeleteAgenticSearchTemplateTransportAction.class)
+                new ActionHandler<>(MLDeleteAgenticSearchTemplateAction.INSTANCE, DeleteAgenticSearchTemplateTransportAction.class),
+                new ActionHandler<>(MLAgenticIndexAction.INSTANCE, TransportAgenticIndexAction.class)
             );
     }
 
@@ -1207,6 +1211,7 @@ public class MachineLearningPlugin extends Plugin
         RestMLListAgenticSearchTemplatesAction restMLListAgenticSearchTemplatesAction = new RestMLListAgenticSearchTemplatesAction(
             mlFeatureEnabledSetting
         );
+        RestMLAgenticIndexAction restMLAgenticIndexAction = new RestMLAgenticIndexAction(mlFeatureEnabledSetting);
         RestMLDeleteAgenticSearchTemplateAction restMLDeleteAgenticSearchTemplateAction = new RestMLDeleteAgenticSearchTemplateAction(
             mlFeatureEnabledSetting
         );
@@ -1301,7 +1306,8 @@ public class MachineLearningPlugin extends Plugin
                 restMLGetAgenticSearchTemplateAction,
                 restMLUpdateAgenticSearchTemplateAction,
                 restMLListAgenticSearchTemplatesAction,
-                restMLDeleteAgenticSearchTemplateAction
+                restMLDeleteAgenticSearchTemplateAction,
+                restMLAgenticIndexAction
             );
     }
 
@@ -1524,6 +1530,8 @@ public class MachineLearningPlugin extends Plugin
                 MLCommonsSettings.ML_COMMONS_MAX_JSON_SIZE,
                 MLCommonsSettings.ML_COMMONS_UNIFIED_AGENT_API_ENABLED,
                 MLCommonsSettings.ML_COMMONS_AGENTIC_SEARCH_TEMPLATE_ENABLED,
+                MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_ENABLED,
+                MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_TIMEOUT,
                 MLCommonsSettings.ML_COMMONS_MCP_HEADER_PASSTHROUGH_ENABLED,
                 MLCommonsSettings.ML_COMMONS_AG_UI_ENABLED,
                 MLCommonsSettings.ML_COMMONS_MEMORY_RETENTION_JOB_INTERVAL_HOURS,

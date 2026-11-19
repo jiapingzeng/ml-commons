@@ -69,6 +69,12 @@ public abstract class DLModel implements Predictable {
 
     protected MLModelConfig modelConfig;
 
+    private final Object lifecycleLock = new Object();
+    // guarded by lifecycleLock
+    private int inFlightPredicts;
+    private boolean released;
+    private boolean resourcesClosed;
+
     @Override
     public MLOutput predict(MLInput mlInput, MLModel model) {
         throw new IllegalArgumentException("model not deployed");
@@ -83,10 +89,14 @@ public abstract class DLModel implements Predictable {
         try {
             return AccessController.doPrivileged((PrivilegedExceptionAction<ModelTensorOutput>) () -> {
                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-                if (!isModelReady()) {
+                if (!beginPredict()) {
                     throw new MLException("model not deployed.");
                 }
-                return this.predict(modelId, mlInput);
+                try {
+                    return this.predict(modelId, mlInput);
+                } finally {
+                    endPredict();
+                }
             });
         } catch (Throwable e) {
             String errorMsg = "Failed to inference " + mlInput.getAlgorithm() + " model: " + modelId;
@@ -150,8 +160,32 @@ public abstract class DLModel implements Predictable {
         }
     }
 
+    /**
+     * Stops new predicts and frees this instance's resources once no predict is running on them. If predicts are in
+     * flight, the last one to finish frees them, so this never waits.
+     */
     @Override
     public void release() {
+        int inFlight;
+        synchronized (lifecycleLock) {
+            released = true;
+            if (resourcesClosed) {
+                return;
+            }
+            inFlight = inFlightPredicts;
+            if (inFlight == 0) {
+                resourcesClosed = true;
+            }
+        }
+        if (inFlight > 0) {
+            log.info("Deferring close of released model {} until {} in-flight predicts finish", modelId, inFlight);
+            return;
+        }
+        closeResources();
+    }
+
+    /** Frees the predictors and models. Called exactly once, after release() and after the last in-flight predict. */
+    protected void closeResources() {
         if (predictors != null) {
             closePredictors(predictors);
             predictors = null;
@@ -159,6 +193,33 @@ public abstract class DLModel implements Predictable {
         if (models != null) {
             closeModels(models);
             models = null;
+        }
+    }
+
+    private boolean beginPredict() {
+        synchronized (lifecycleLock) {
+            if (released || !isModelReady()) {
+                return false;
+            }
+            inFlightPredicts++;
+            return true;
+        }
+    }
+
+    private void endPredict() {
+        synchronized (lifecycleLock) {
+            inFlightPredicts--;
+            if (inFlightPredicts > 0 || !released || resourcesClosed) {
+                return;
+            }
+            resourcesClosed = true;
+        }
+        log.info("Last in-flight predict finished, closing released model {}", modelId);
+        // a cleanup failure must not replace this predict's own result
+        try {
+            closeResources();
+        } catch (RuntimeException e) {
+            log.error("Failed to close released model {}", modelId, e);
         }
     }
 

@@ -45,6 +45,9 @@ public class IndexProfile {
     static final int MAX_PROFILED_FIELDS = 50;
     static final int MAX_VALUE_CHARS = 100;
     static final int MAX_RENDERED_CHARS = 8000;
+    static final int CATALOG_VALUE_FIELDS = 3;
+    static final int CATALOG_VALUES_PER_FIELD = 3;
+    static final int CATALOG_DESCRIPTION_CHARS = 150;
     // Profiling preference: searchable text first, then likely low-cardinality filters; keyword sub-fields of text
     // (usually titles and other high-cardinality values) come last.
     private static final List<FieldKind> PROFILE_ORDER = List
@@ -65,6 +68,8 @@ public class IndexProfile {
     private final Map<String, List<String>> keywordValues;
     private final Map<String, String[]> dateRanges;
     private final String indexInsight;
+    // Mapping _meta.description, shown in the routing catalog.
+    private final String description;
 
     private IndexProfile(
         String index,
@@ -73,7 +78,8 @@ public class IndexProfile {
         List<String> profiledFields,
         Map<String, List<String>> keywordValues,
         Map<String, String[]> dateRanges,
-        String indexInsight
+        String indexInsight,
+        String description
     ) {
         this.index = index;
         this.fields = fields;
@@ -82,6 +88,7 @@ public class IndexProfile {
         this.keywordValues = keywordValues;
         this.dateRanges = dateRanges;
         this.indexInsight = indexInsight;
+        this.description = description;
     }
 
     /**
@@ -106,6 +113,7 @@ public class IndexProfile {
             selectProfiledFields(fields, subFields, preferredFields),
             new LinkedHashMap<>(),
             new LinkedHashMap<>(),
+            null,
             null
         );
     }
@@ -132,7 +140,14 @@ public class IndexProfile {
      * Copy of this profile with index insight text added to the rendered description.
      */
     public IndexProfile withIndexInsight(String insight) {
-        return new IndexProfile(index, fields, noDocValues, profiledFields, keywordValues, dateRanges, insight);
+        return new IndexProfile(index, fields, noDocValues, profiledFields, keywordValues, dateRanges, insight, description);
+    }
+
+    /**
+     * Copy of this profile with the index description (mapping {@code _meta.description}) shown in its catalog entry.
+     */
+    public IndexProfile withDescription(String description) {
+        return new IndexProfile(index, fields, noDocValues, profiledFields, keywordValues, dateRanges, indexInsight, description);
     }
 
     @SuppressWarnings("unchecked")
@@ -271,9 +286,24 @@ public class IndexProfile {
     }
 
     /**
+     * Copies the keyword values and date ranges of another profile of the same mapping, such as a cached one.
+     */
+    public void copyStatsFrom(IndexProfile other) {
+        keywordValues.putAll(other.keywordValues);
+        dateRanges.putAll(other.dateRanges);
+    }
+
+    /**
      * Renders the profile as plain text for the planner prompt, capped at {@link #MAX_RENDERED_CHARS}.
      */
     public String render() {
+        return render(MAX_RENDERED_CHARS);
+    }
+
+    /**
+     * Renders the profile as plain text, capped at {@code maxChars}.
+     */
+    public String render(int maxChars) {
         StringBuilder sb = new StringBuilder();
         sb.append("Index: ").append(index).append('\n');
         appendList(sb, "Text fields (keyword/semantic match)", profiledFieldsOfKind(FieldKind.TEXT));
@@ -305,7 +335,60 @@ public class IndexProfile {
         if (indexInsight != null && !indexInsight.isBlank()) {
             sb.append("Index insight:\n").append(indexInsight).append('\n');
         }
-        return sb.length() <= MAX_RENDERED_CHARS ? sb.toString() : sb.substring(0, MAX_RENDERED_CHARS) + "\n... (profile truncated)\n";
+        return sb.length() <= maxChars ? sb.toString() : sb.substring(0, maxChars) + "\n... (profile truncated)\n";
+    }
+
+    /**
+     * One-line summary for the index catalog of the routing step: the start of the index description, field names and
+     * types, a few keyword values and the first date range, capped at {@code maxChars}.
+     */
+    public String catalogEntry(int maxChars) {
+        StringBuilder sb = new StringBuilder("- ").append(index).append(": ");
+        String about = description == null ? "" : oneLine(description).strip();
+        if (!about.isEmpty()) {
+            sb.append("description ").append(PassageStore.truncate(about, CATALOG_DESCRIPTION_CHARS)).append("; ");
+        }
+        sb.append("fields ");
+        List<String> described = new ArrayList<>();
+        for (String field : profiledFields) {
+            FieldKind kind = fields.get(field);
+            if (!(kind == FieldKind.KEYWORD && field.endsWith(".keyword") && fields.containsKey(field.substring(0, field.length() - 8)))) {
+                described.add(oneLine(field) + "(" + kind.name().toLowerCase(Locale.ROOT) + ")");
+            }
+        }
+        sb.append(String.join(", ", described));
+        List<String> values = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : keywordValues.entrySet()) {
+            if (values.size() >= CATALOG_VALUE_FIELDS) {
+                break;
+            }
+            List<String> sample = entry.getValue().subList(0, Math.min(CATALOG_VALUES_PER_FIELD, entry.getValue().size()));
+            values
+                .add(
+                    oneLine(entry.getKey())
+                        + "="
+                        + String.join("|", sample.stream().map(v -> PassageStore.truncate(oneLine(v), 30)).toList())
+                );
+        }
+        if (!values.isEmpty()) {
+            sb.append("; values ").append(String.join(", ", values));
+        }
+        for (Map.Entry<String, String[]> range : dateRanges.entrySet()) {
+            sb
+                .append("; dates ")
+                .append(oneLine(range.getKey()))
+                .append(' ')
+                .append(range.getValue()[0])
+                .append("..")
+                .append(range.getValue()[1]);
+            break;
+        }
+        return sb.length() <= maxChars ? sb.toString() : sb.substring(0, Math.max(0, maxChars - 3)) + "...";
+    }
+
+    // Control characters (newlines included) would break the one-line entry, so they become spaces.
+    private static String oneLine(String text) {
+        return text.replaceAll("\\p{Cntrl}", " ");
     }
 
     private static void appendList(StringBuilder sb, String label, List<String> values) {

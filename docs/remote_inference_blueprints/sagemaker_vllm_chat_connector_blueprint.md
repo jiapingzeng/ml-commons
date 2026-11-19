@@ -122,18 +122,46 @@ POST /_plugins/_ml/agentic_index/support-docs/_ask
 }
 ```
 
-Optional request fields: `text_fields`, `max_rounds`, `max_subqueries`, `k`, `use_index_insight`, and `timeout`
-(for example `"30s"`). The request stops at its deadline and returns the passages found so far with
+Optional request fields: `text_fields`, `max_rounds`, `max_subqueries`, `k`, `use_index_insight`, `max_indices_selected`
+and `timeout` (for example `"30s"`). The request stops at its deadline and returns the passages found so far with
 `"timed_out": true` (ask also returns `"answer": null`). The deadline defaults to, and is capped by, the cluster setting
-`plugins.ml_commons.agentic_index_timeout` (default `2m`). The target must resolve to one index; wildcards and aliases
-that point to several indices are rejected.
+`plugins.ml_commons.agentic_index_timeout` (default `2m`). Without `embedding_field`, each index's `knn_vector` field is
+used for semantic search; indices without one are searched with keyword search only.
+
+### Several indices
+
+The target can be a comma-separated list, a wildcard pattern or an alias that resolves to several indices. Instead of
+the path, the body can list the target: `POST /_plugins/_ml/agentic_index/_ask` with `"indices": ["logs-*", "tickets"]`.
+Patterns skip hidden, system and dot-prefixed indices unless they are named explicitly (backing indices of a matched data
+stream are kept), and they resolve only to the indices the caller can read. An index reached through an alias or data
+stream is searched through it, so alias filters apply. A target that resolves to more than
+`plugins.ml_commons.agentic_index_max_indices` (default 500) readable indices is rejected.
+
+Each index is profiled from its mapping. When more indices resolve than `max_indices_selected` (default 5, at most
+20), a routing step shows the LLM a compact catalog (field names and types per index), and the LLM selects the relevant
+indices. A large catalog is narrowed to the indices whose names and fields best match the question. Field statistics
+(keyword values, date ranges) are collected only for the selected indices. Each planned subquery then searches one
+selected index, a follow-up round may add one more index from the catalog, and passages and citations name their index.
+The trace reports `resolved_index_count` and, under `routing`, the catalog size, timings and the selected indices with
+reasons.
+
+```json
+POST /_plugins/_ml/agentic_index/logs-*,tickets/_ask
+{
+  "question": "Did the SSO outage last week affect Enterprise customers?",
+  "llm_model_id": "<model_id>",
+  "max_indices_selected": 3
+}
+```
 
 ## Permissions
 
 The APIs run every step as the calling user. With the security plugin enabled, the caller needs:
 
 - Cluster permissions `cluster:admin/opensearch/ml/agentic_index/query` and `cluster:admin/opensearch/ml/predict`.
-- Index permissions on the target index: `indices:admin/mappings/get` and `indices:data/read/search`.
+- Index permissions on the target indices: `indices:admin/mappings/get` and `indices:data/read/search`. A pattern
+  resolves to the matching indices the caller can read; an explicitly named index the caller cannot read fails the
+  request.
 - Access to the model group of the LLM and of the embedding model, when model access control is enabled.
 - With `use_index_insight`, `cluster:admin/opensearch/ml/index_insight/get`. If index insight is unavailable, the
   request continues without it and reports a warning in the trace.

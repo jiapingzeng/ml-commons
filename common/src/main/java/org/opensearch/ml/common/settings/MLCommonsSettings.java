@@ -442,6 +442,16 @@ public final class MLCommonsSettings {
             Setting.Property.NodeScope,
             Setting.Property.Dynamic
         );
+    // Most concrete indices one agentic index request may resolve to; larger targets are rejected.
+    public static final Setting<Integer> ML_COMMONS_AGENTIC_INDEX_MAX_INDICES = Setting
+        .intSetting(
+            ML_PLUGIN_SETTING_PREFIX + "agentic_index_max_indices",
+            500,
+            1,
+            10000,
+            Setting.Property.NodeScope,
+            Setting.Property.Dynamic
+        );
 
     public static final Setting<Boolean> ML_COMMONS_CONNECTOR_PRIVATE_IP_ENABLED = Setting
         .boolSetting(

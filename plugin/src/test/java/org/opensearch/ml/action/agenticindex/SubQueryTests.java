@@ -129,5 +129,15 @@ public class SubQueryTests extends OpenSearchTestCase {
         assertEquals("keyword", map.get("search"));
         assertEquals(Map.of(), map.get("filters"));
         assertEquals(List.of("dropped filter on non-filterable field unknown"), map.get("warnings"));
+        assertFalse(map.containsKey("index"));
+    }
+
+    public void testFromPlanForIndex() {
+        SubQuery subQuery = SubQuery
+            .fromPlan(Map.of("query", "a", "search", "hybrid"), "docs-2", profile, false, "index docs-2 has no vector field, used keyword");
+        assertEquals("docs-2", subQuery.getIndex());
+        assertEquals(SearchMode.KEYWORD, subQuery.getMode());
+        assertEquals(List.of("index docs-2 has no vector field, used keyword"), subQuery.getWarnings());
+        assertEquals("docs-2", subQuery.toMap().get("index"));
     }
 }

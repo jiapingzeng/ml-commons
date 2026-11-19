@@ -1532,6 +1532,7 @@ public class MachineLearningPlugin extends Plugin
                 MLCommonsSettings.ML_COMMONS_AGENTIC_SEARCH_TEMPLATE_ENABLED,
                 MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_ENABLED,
                 MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_TIMEOUT,
+                MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_MAX_INDICES,
                 MLCommonsSettings.ML_COMMONS_MCP_HEADER_PASSTHROUGH_ENABLED,
                 MLCommonsSettings.ML_COMMONS_AG_UI_ENABLED,
                 MLCommonsSettings.ML_COMMONS_MEMORY_RETENTION_JOB_INTERVAL_HOURS,

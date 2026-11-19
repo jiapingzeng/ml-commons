@@ -105,6 +105,112 @@ final class AgenticIndexPrompts {
             );
     }
 
+    private static final String MULTI_SUBQUERY_FORMAT = """
+        Each subquery is a JSON object:
+        {"index": "<name of one index from the profiles>",
+         "query": "<keywords or a short natural-language phrase to match against that index's text fields, or empty>",
+         "search": "keyword" | "semantic" | "hybrid",
+         "filters": {"<field>": <value> | [<values>] | {"gte": <v>, "lte": <v>, "gt": <v>, "lt": <v>}}}
+        Rules:
+        - Each subquery searches one index. Use filters only on the exact-match keyword, date, numeric and boolean fields \
+        listed in that index's profile, and only with values that appear there (match case exactly). Use date ranges with \
+        ISO dates (yyyy-MM-dd).
+        - Put exact identifiers such as error codes, SKUs and version numbers in "query" with "search": "keyword".
+        - Use "semantic" or "hybrid" only on indices whose profile says semantic search is available.
+        - Split a question that asks about several things, or needs several indices, into one subquery per thing and \
+        index so they run in parallel.
+        - Do not add a filter the question does not ask for.""";
+
+    static String routing(String catalog, String question, String now, int maxIndices) {
+        return String
+            .format(
+                Locale.ROOT,
+                """
+                    Current timestamp: %s
+
+                    Index catalog (one line per index: fields with types):
+                    %s
+                    ## Task
+                    Select the indices most likely to contain the evidence needed to answer the question, at most %d, most \
+                    relevant first. Prefer fewer indices when one clearly covers the question. Use only index names from the catalog.
+
+                    Question: %s
+
+                    Return only a JSON object: {"indices": [{"index": "<name>", "reason": "<one short sentence>"}]}""",
+                now,
+                catalog,
+                maxIndices,
+                question
+            );
+    }
+
+    static String multiPlanner(String profiles, String question, String now, int maxSubqueries) {
+        return String.format(Locale.ROOT, """
+            Current timestamp: %s
+
+            Index profiles:
+            %s
+            ## Task
+            Plan the smallest set of independent search subqueries (at most %d) that together retrieve the evidence \
+            needed to answer the question.
+
+            %s
+
+            Question: %s
+
+            Return only a JSON object: {"subqueries": [ ... ]}""", now, profiles, maxSubqueries, MULTI_SUBQUERY_FORMAT, question);
+    }
+
+    static String multiSufficiency(
+        String profiles,
+        String otherIndices,
+        String question,
+        String now,
+        String passages,
+        String previousQueries,
+        int maxSubqueries
+    ) {
+        String other = otherIndices.isEmpty()
+            ? ""
+            : "Other indices (a follow-up subquery may search at most one of them, which adds it to the profiles):\n" + otherIndices;
+        return String
+            .format(
+                Locale.ROOT,
+                """
+                    Current timestamp: %s
+
+                    Index profiles:
+                    %s
+                    %s
+                    Question: %s
+
+                    Subqueries already run:
+                    %s
+
+                    Retrieved passages:
+                    %s
+
+                    ## Task
+                    Judge whether the retrieved passages contain enough evidence to fully answer every part of the question.
+                    List the ids of the passages that directly support an answer, most relevant first; omit unrelated passages.
+                    If evidence is missing, propose at most %d new follow-up subqueries that differ from the ones already run.
+
+                    %s
+
+                    Return only a JSON object:
+                    {"sufficient": true | false, "relevant": ["P1", ...], "missing": "<what is still missing, or empty>", \
+                    "followups": [ ... ]}""",
+                now,
+                profiles,
+                other,
+                question,
+                previousQueries,
+                passages.isEmpty() ? "(none)" : passages,
+                maxSubqueries,
+                MULTI_SUBQUERY_FORMAT
+            );
+    }
+
     static String answer(String question, String now, String passages) {
         return String.format(Locale.ROOT, """
             Current timestamp: %s

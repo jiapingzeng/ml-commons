@@ -30,7 +30,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 /**
- * Experimental agentic index APIs: _ask returns a cited answer, _retrieve returns cited passages only.
+ * Experimental agentic index APIs: _ask returns a cited answer, _retrieve returns cited passages only. The target is the
+ * {index} path parameter (an index, alias, pattern or comma-separated list) or the "indices" body field.
  */
 public class RestMLAgenticIndexAction extends BaseRestHandler {
     private static final String ACTION_NAME = "ml_agentic_index_action";
@@ -52,8 +53,15 @@ public class RestMLAgenticIndexAction extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         String base = String.format(Locale.ROOT, "%s/agentic_index/{%s}", ML_BASE_URI, PARAMETER_INDEX);
+        // Without an index in the path, the body lists the target indices.
+        String bodyTarget = ML_BASE_URI + "/agentic_index";
         return ImmutableList
-            .of(new Route(RestRequest.Method.POST, base + ASK_SUFFIX), new Route(RestRequest.Method.POST, base + RETRIEVE_SUFFIX));
+            .of(
+                new Route(RestRequest.Method.POST, base + ASK_SUFFIX),
+                new Route(RestRequest.Method.POST, base + RETRIEVE_SUFFIX),
+                new Route(RestRequest.Method.POST, bodyTarget + ASK_SUFFIX),
+                new Route(RestRequest.Method.POST, bodyTarget + RETRIEVE_SUFFIX)
+            );
     }
 
     @Override

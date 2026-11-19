@@ -55,6 +55,8 @@ public class MLAgenticIndexRequest extends ActionRequest {
     public static final String K_FIELD = "k";
     public static final String USE_INDEX_INSIGHT_FIELD = "use_index_insight";
     public static final String TIMEOUT_FIELD = "timeout";
+    public static final String INDICES_FIELD = "indices";
+    public static final String MAX_INDICES_SELECTED_FIELD = "max_indices_selected";
 
     public static final int DEFAULT_MAX_ROUNDS = 3;
     public static final int MAX_ROUNDS_LIMIT = 5;
@@ -64,7 +66,10 @@ public class MLAgenticIndexRequest extends ActionRequest {
     public static final int K_LIMIT = 20;
     public static final int TEXT_FIELDS_LIMIT = 20;
     public static final int QUESTION_MAX_CHARS = 4000;
+    public static final int DEFAULT_MAX_INDICES_SELECTED = 5;
+    public static final int MAX_INDICES_SELECTED_LIMIT = 20;
 
+    // Target expression: one index, alias, wildcard or comma-separated list.
     private final String index;
     private final Mode mode;
     private final String question;
@@ -79,6 +84,8 @@ public class MLAgenticIndexRequest extends ActionRequest {
     // Optional per-request deadline; the effective deadline is capped by the cluster setting.
     private final TimeValue timeout;
     private final String tenantId;
+    // Most indices the routing step selects for planning when the target resolves to several indices.
+    private final int maxIndicesSelected;
 
     @Builder
     public MLAgenticIndexRequest(
@@ -94,7 +101,8 @@ public class MLAgenticIndexRequest extends ActionRequest {
         Integer k,
         Boolean useIndexInsight,
         TimeValue timeout,
-        String tenantId
+        String tenantId,
+        Integer maxIndicesSelected
     ) {
         this.index = index;
         this.mode = mode;
@@ -109,6 +117,7 @@ public class MLAgenticIndexRequest extends ActionRequest {
         this.useIndexInsight = Boolean.TRUE.equals(useIndexInsight);
         this.timeout = timeout;
         this.tenantId = tenantId;
+        this.maxIndicesSelected = maxIndicesSelected == null ? DEFAULT_MAX_INDICES_SELECTED : maxIndicesSelected;
     }
 
     public MLAgenticIndexRequest(StreamInput in) throws IOException {
@@ -126,6 +135,7 @@ public class MLAgenticIndexRequest extends ActionRequest {
         this.useIndexInsight = in.readBoolean();
         this.timeout = in.readOptionalTimeValue();
         this.tenantId = in.readOptionalString();
+        this.maxIndicesSelected = in.readVInt();
     }
 
     @Override
@@ -144,13 +154,14 @@ public class MLAgenticIndexRequest extends ActionRequest {
         out.writeBoolean(useIndexInsight);
         out.writeOptionalTimeValue(timeout);
         out.writeOptionalString(tenantId);
+        out.writeVInt(maxIndicesSelected);
     }
 
     @Override
     public ActionRequestValidationException validate() {
         ActionRequestValidationException exception = null;
         if (isBlank(index)) {
-            exception = addValidationError("index is required", exception);
+            exception = addValidationError("index is required: set it in the path or in the " + INDICES_FIELD + " body field", exception);
         }
         if (mode == null) {
             exception = addValidationError("mode is required", exception);
@@ -166,8 +177,9 @@ public class MLAgenticIndexRequest extends ActionRequest {
         if (isBlank(llmModelId)) {
             exception = addValidationError(LLM_MODEL_ID_FIELD + " is required", exception);
         }
-        if ((embeddingModelId == null) != (embeddingField == null)) {
-            exception = addValidationError(EMBEDDING_MODEL_ID_FIELD + " and " + EMBEDDING_FIELD_FIELD + " must be set together", exception);
+        // Without embedding_field, the vector field is detected per index.
+        if (embeddingField != null && embeddingModelId == null) {
+            exception = addValidationError(EMBEDDING_FIELD_FIELD + " requires " + EMBEDDING_MODEL_ID_FIELD, exception);
         }
         if (embeddingModelId != null && embeddingModelId.isBlank()) {
             exception = addValidationError(EMBEDDING_MODEL_ID_FIELD + " must not be blank", exception);
@@ -190,6 +202,7 @@ public class MLAgenticIndexRequest extends ActionRequest {
         exception = checkRange(MAX_ROUNDS_FIELD, maxRounds, MAX_ROUNDS_LIMIT, exception);
         exception = checkRange(MAX_SUBQUERIES_FIELD, maxSubqueries, MAX_SUBQUERIES_LIMIT, exception);
         exception = checkRange(K_FIELD, k, K_LIMIT, exception);
+        exception = checkRange(MAX_INDICES_SELECTED_FIELD, maxIndicesSelected, MAX_INDICES_SELECTED_LIMIT, exception);
         return exception;
     }
 
@@ -211,9 +224,11 @@ public class MLAgenticIndexRequest extends ActionRequest {
 
     /**
      * Parses the request body. Unknown fields are rejected so that typos fail fast.
+     * @param index target from the path, or null when the body lists the target in "indices"
      */
     public static MLAgenticIndexRequest parse(XContentParser parser, String index, Mode mode, String tenantId) throws IOException {
         MLAgenticIndexRequestBuilder builder = MLAgenticIndexRequest.builder().index(index).mode(mode).tenantId(tenantId);
+        List<String> indices = null;
         ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.currentToken(), parser);
         while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
             String fieldName = parser.currentName();
@@ -223,14 +238,9 @@ public class MLAgenticIndexRequest extends ActionRequest {
                 case LLM_MODEL_ID_FIELD -> builder.llmModelId(parser.text());
                 case EMBEDDING_MODEL_ID_FIELD -> builder.embeddingModelId(parser.text());
                 case EMBEDDING_FIELD_FIELD -> builder.embeddingField(parser.text());
-                case TEXT_FIELDS_FIELD -> {
-                    ensureExpectedToken(XContentParser.Token.START_ARRAY, parser.currentToken(), parser);
-                    List<String> fields = new ArrayList<>();
-                    while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
-                        fields.add(parser.text());
-                    }
-                    builder.textFields(fields);
-                }
+                case TEXT_FIELDS_FIELD -> builder.textFields(parseStringArray(parser));
+                case INDICES_FIELD -> indices = parseStringArray(parser);
+                case MAX_INDICES_SELECTED_FIELD -> builder.maxIndicesSelected(parser.intValue());
                 case MAX_ROUNDS_FIELD -> builder.maxRounds(parser.intValue());
                 case MAX_SUBQUERIES_FIELD -> builder.maxSubqueries(parser.intValue());
                 case K_FIELD -> builder.k(parser.intValue());
@@ -239,7 +249,25 @@ public class MLAgenticIndexRequest extends ActionRequest {
                 default -> throw new IllegalArgumentException("Unknown field [" + fieldName + "] in agentic index request");
             }
         }
+        if (indices != null) {
+            if (index != null) {
+                throw new IllegalArgumentException("Set the target index in the path or in " + INDICES_FIELD + ", not both");
+            }
+            if (indices.isEmpty() || indices.stream().anyMatch(i -> isBlank(i) || i.contains(","))) {
+                throw new IllegalArgumentException(INDICES_FIELD + " must be a non-empty list of index names, aliases or patterns");
+            }
+            builder.index(String.join(",", indices));
+        }
         return builder.build();
+    }
+
+    private static List<String> parseStringArray(XContentParser parser) throws IOException {
+        ensureExpectedToken(XContentParser.Token.START_ARRAY, parser.currentToken(), parser);
+        List<String> values = new ArrayList<>();
+        while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
+            values.add(parser.text());
+        }
+        return values;
     }
 
     @Override

@@ -41,6 +41,8 @@ public class SubQuery {
 
     private static final Set<String> RANGE_OPS = Set.of("gte", "gt", "lte", "lt");
 
+    // Concrete index the subquery searches.
+    private final String index;
     private final String text;
     private final SearchMode mode;
     // Field to accepted filter value: a scalar, a list of scalars, or a range map.
@@ -48,6 +50,11 @@ public class SubQuery {
     private final List<String> warnings;
 
     SubQuery(String text, SearchMode mode, Map<String, Object> filters, List<String> warnings) {
+        this(null, text, mode, filters, warnings);
+    }
+
+    SubQuery(String index, String text, SearchMode mode, Map<String, Object> filters, List<String> warnings) {
+        this.index = index;
         this.text = text;
         this.mode = mode;
         this.filters = filters;
@@ -58,8 +65,22 @@ public class SubQuery {
      * Parses one planner item such as {"query": "...", "search": "keyword", "filters": {"plan": ["Pro"]}}.
      * Returns null when the item has neither usable text nor usable filters.
      */
-    @SuppressWarnings("unchecked")
     public static SubQuery fromPlan(Object item, IndexProfile profile, boolean semanticAvailable) {
+        return fromPlan(item, null, profile, semanticAvailable, "semantic search not configured, used keyword");
+    }
+
+    /**
+     * Parses one planner item for the given concrete index; filters are validated against that index's profile.
+     * @param semanticUnavailableNote warning added when the item asks for semantic or hybrid search that is unavailable
+     */
+    @SuppressWarnings("unchecked")
+    public static SubQuery fromPlan(
+        Object item,
+        String index,
+        IndexProfile profile,
+        boolean semanticAvailable,
+        String semanticUnavailableNote
+    ) {
         if (!(item instanceof Map)) {
             return null;
         }
@@ -67,7 +88,7 @@ public class SubQuery {
         List<String> warnings = new ArrayList<>();
         Object rawText = map.get("query");
         String text = rawText == null ? "" : String.valueOf(rawText).trim();
-        SearchMode mode = parseMode(map.get("search"), semanticAvailable, warnings);
+        SearchMode mode = parseMode(map.get("search"), semanticAvailable, semanticUnavailableNote, warnings);
 
         Map<String, Object> filters = new LinkedHashMap<>();
         Object rawFilters = map.get("filters");
@@ -81,10 +102,10 @@ public class SubQuery {
         if (text.isEmpty() && filters.isEmpty()) {
             return null;
         }
-        return new SubQuery(text, mode, filters, warnings);
+        return new SubQuery(index, text, mode, filters, warnings);
     }
 
-    private static SearchMode parseMode(Object raw, boolean semanticAvailable, List<String> warnings) {
+    private static SearchMode parseMode(Object raw, boolean semanticAvailable, String unavailableNote, List<String> warnings) {
         SearchMode mode = SearchMode.KEYWORD;
         if (raw != null) {
             try {
@@ -96,7 +117,7 @@ public class SubQuery {
             mode = SearchMode.HYBRID;
         }
         if (mode != SearchMode.KEYWORD && !semanticAvailable) {
-            warnings.add("semantic search not configured, used keyword");
+            warnings.add(unavailableNote);
             mode = SearchMode.KEYWORD;
         }
         return mode;
@@ -213,6 +234,9 @@ public class SubQuery {
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
+        if (index != null) {
+            map.put("index", index);
+        }
         map.put("query", text);
         map.put("search", mode.name().toLowerCase(Locale.ROOT));
         map.put("filters", filters);

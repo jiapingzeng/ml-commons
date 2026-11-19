@@ -7,6 +7,7 @@ package org.opensearch.ml.action.agenticindex;
 
 import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_USER_INFO_THREAD_CONTEXT;
 import static org.opensearch.ml.common.settings.MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_DISABLED_MESSAGE;
+import static org.opensearch.ml.common.settings.MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_MAX_INDICES;
 import static org.opensearch.ml.common.settings.MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_TIMEOUT;
 
 import java.time.Clock;
@@ -15,6 +16,7 @@ import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.unit.TimeValue;
@@ -31,8 +33,8 @@ import org.opensearch.transport.TransportService;
 import org.opensearch.transport.client.Client;
 
 /**
- * Executes agentic index ask and retrieve requests. The thread context is not stashed: index searches and model
- * predictions are authorized as the calling user.
+ * Executes agentic index ask and retrieve requests. The thread context is not stashed: index resolution, searches and
+ * model predictions are authorized as the calling user.
  */
 public class TransportAgenticIndexAction extends HandledTransportAction<ActionRequest, MLAgenticIndexResponse> {
 
@@ -40,6 +42,7 @@ public class TransportAgenticIndexAction extends HandledTransportAction<ActionRe
     private final ClusterService clusterService;
     private final MLFeatureEnabledSetting mlFeatureEnabledSetting;
     private final IndexProfileCache profileCache;
+    private final IndexResolver resolver;
 
     @Inject
     public TransportAgenticIndexAction(
@@ -47,9 +50,18 @@ public class TransportAgenticIndexAction extends HandledTransportAction<ActionRe
         ActionFilters actionFilters,
         Client client,
         ClusterService clusterService,
-        MLFeatureEnabledSetting mlFeatureEnabledSetting
+        MLFeatureEnabledSetting mlFeatureEnabledSetting,
+        IndexNameExpressionResolver indexNameExpressionResolver
     ) {
-        this(transportService, actionFilters, client, clusterService, mlFeatureEnabledSetting, new IndexProfileCache(clusterService));
+        this(
+            transportService,
+            actionFilters,
+            client,
+            clusterService,
+            mlFeatureEnabledSetting,
+            new IndexProfileCache(clusterService),
+            new IndexResolver(client, clusterService::state, indexNameExpressionResolver)
+        );
     }
 
     TransportAgenticIndexAction(
@@ -58,13 +70,15 @@ public class TransportAgenticIndexAction extends HandledTransportAction<ActionRe
         Client client,
         ClusterService clusterService,
         MLFeatureEnabledSetting mlFeatureEnabledSetting,
-        IndexProfileCache profileCache
+        IndexProfileCache profileCache,
+        IndexResolver resolver
     ) {
         super(MLAgenticIndexAction.NAME, transportService, actionFilters, MLAgenticIndexRequest::new);
         this.client = client;
         this.clusterService = clusterService;
         this.mlFeatureEnabledSetting = mlFeatureEnabledSetting;
         this.profileCache = profileCache;
+        this.resolver = resolver;
     }
 
     @Override
@@ -83,9 +97,20 @@ public class TransportAgenticIndexAction extends HandledTransportAction<ActionRe
                 ? maxTimeout
                 : request.getTimeout();
             String caller = client.threadPool().getThreadContext().getTransient(OPENSEARCH_SECURITY_USER_INFO_THREAD_CONTEXT);
+            int maxIndices = clusterService.getClusterSettings().get(ML_COMMONS_AGENTIC_INDEX_MAX_INDICES);
             String localNodeId = clusterService.localNode().getId();
-            new AgenticIndexRunner(request, client, Clock.systemUTC(), profileCache, caller, timeout, (CancellableTask) task, localNodeId)
-                .run(ActionListener.wrap(result -> listener.onResponse(new MLAgenticIndexResponse(result)), listener::onFailure));
+            new AgenticIndexRunner(
+                request,
+                client,
+                Clock.systemUTC(),
+                profileCache,
+                resolver,
+                maxIndices,
+                caller,
+                timeout,
+                (CancellableTask) task,
+                localNodeId
+            ).run(ActionListener.wrap(result -> listener.onResponse(new MLAgenticIndexResponse(result)), listener::onFailure));
         } catch (Exception e) {
             listener.onFailure(e);
         }

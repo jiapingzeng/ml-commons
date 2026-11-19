@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.search.SearchHit;
@@ -30,16 +31,29 @@ public class PassageStore {
     // Metadata fields surfaced as citation location when present in the source document.
     static final List<String> LOCATION_FIELDS = List.of("source", "file", "file_name", "url", "page", "page_number", "chunk", "chunk_id");
 
-    private final List<String> textFields;
-    private final Set<String> excludedFields;
+    // Text and excluded fields of a passage's index, by concrete index name.
+    private final Function<String, List<String>> textFieldsOf;
+    private final Function<String, Set<String>> excludedFieldsOf;
     private final int maxPassages;
+    // Whether rendered passages name their index, for requests over several indices.
+    private final boolean showIndex;
     private final Map<String, Map<String, Object>> byKey = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
 
     public PassageStore(List<String> textFields, Set<String> excludedFields, int maxPassages) {
-        this.textFields = textFields;
-        this.excludedFields = excludedFields;
+        this(index -> textFields, index -> excludedFields, maxPassages, false);
+    }
+
+    public PassageStore(
+        Function<String, List<String>> textFieldsOf,
+        Function<String, Set<String>> excludedFieldsOf,
+        int maxPassages,
+        boolean showIndex
+    ) {
+        this.textFieldsOf = textFieldsOf;
+        this.excludedFieldsOf = excludedFieldsOf;
         this.maxPassages = maxPassages;
+        this.showIndex = showIndex;
     }
 
     /**
@@ -66,15 +80,16 @@ public class PassageStore {
         if (source.get("title") != null) {
             passage.put("title", truncate(String.valueOf(source.get("title")), MAX_METADATA_CHARS));
         }
-        passage.put("text", truncate(passageText(source), MAX_TEXT_CHARS));
-        passage.put("metadata", metadata(source));
+        List<String> textFields = textFieldsOf.apply(hit.getIndex());
+        passage.put("text", truncate(passageText(source, textFields), MAX_TEXT_CHARS));
+        passage.put("metadata", metadata(source, textFields, excludedFieldsOf.apply(hit.getIndex())));
         byKey.put(key, passage);
         byId.put(passageId, passage);
         return passageId;
     }
 
     // Location fields first, then the rest by name, until the entry or character budget is used up.
-    private Map<String, Object> metadata(Map<String, Object> source) {
+    private static Map<String, Object> metadata(Map<String, Object> source, List<String> textFields, Set<String> excludedFields) {
         List<String> keys = new ArrayList<>();
         LOCATION_FIELDS.stream().filter(source::containsKey).forEach(keys::add);
         source.keySet().stream().filter(k -> !LOCATION_FIELDS.contains(k)).sorted().forEach(keys::add);
@@ -82,7 +97,7 @@ public class PassageStore {
         int chars = 0;
         for (String key : keys) {
             Object raw = source.get(key);
-            if (raw == null || coveredByTextOrExcluded(key)) {
+            if (raw == null || coveredByTextOrExcluded(key, textFields, excludedFields)) {
                 continue;
             }
             if (metadata.size() >= MAX_METADATA_ENTRIES) {
@@ -99,7 +114,7 @@ public class PassageStore {
     }
 
     // A top-level key is left out of metadata when it is, or contains, a text or excluded field (content for content.body).
-    private boolean coveredByTextOrExcluded(String key) {
+    private static boolean coveredByTextOrExcluded(String key, List<String> textFields, Set<String> excludedFields) {
         for (Collection<String> fields : List.of(textFields, excludedFields)) {
             for (String field : fields) {
                 if (field.equals(key) || field.startsWith(key + ".")) {
@@ -122,7 +137,7 @@ public class PassageStore {
         return json.length() <= MAX_METADATA_CHARS ? value : truncate(json, MAX_METADATA_CHARS);
     }
 
-    private String passageText(Map<String, Object> source) {
+    private static String passageText(Map<String, Object> source, List<String> textFields) {
         StringBuilder sb = new StringBuilder();
         for (String field : textFields) {
             Object value = XContentMapValues.extractValue(field, source);
@@ -199,7 +214,11 @@ public class PassageStore {
         int i = 0;
         for (Map<String, Object> passage : passages) {
             StringBuilder sb = new StringBuilder();
-            sb.append('[').append(labels.get(i++)).append("] doc_id=").append(passage.get("doc_id"));
+            sb.append('[').append(labels.get(i++)).append(']');
+            if (showIndex) {
+                sb.append(" index=").append(passage.get("index"));
+            }
+            sb.append(" doc_id=").append(passage.get("doc_id"));
             Map<String, Object> metadata = (Map<String, Object>) passage.get("metadata");
             metadata.forEach((k, v) -> sb.append(' ').append(k).append('=').append(v));
             sb.append('\n').append(passage.get("text"));

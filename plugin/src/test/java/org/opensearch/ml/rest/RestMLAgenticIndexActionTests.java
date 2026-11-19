@@ -41,10 +41,33 @@ public class RestMLAgenticIndexActionTests extends OpenSearchTestCase {
     public void testNameAndRoutes() {
         assertEquals("ml_agentic_index_action", restAction.getName());
         List<RestHandler.Route> routes = restAction.routes();
-        assertEquals(2, routes.size());
+        assertEquals(4, routes.size());
         assertEquals(RestRequest.Method.POST, routes.get(0).getMethod());
         assertEquals("/_plugins/_ml/agentic_index/{index}/_ask", routes.get(0).getPath());
         assertEquals("/_plugins/_ml/agentic_index/{index}/_retrieve", routes.get(1).getPath());
+        assertEquals("/_plugins/_ml/agentic_index/_ask", routes.get(2).getPath());
+        assertEquals("/_plugins/_ml/agentic_index/_retrieve", routes.get(3).getPath());
+    }
+
+    public void testIndicesInBody() throws IOException {
+        RestRequest rest = new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY)
+            .withMethod(RestRequest.Method.POST)
+            .withPath("/_plugins/_ml/agentic_index/_retrieve")
+            .withContent(new BytesArray("{\"question\":\"q\",\"llm_model_id\":\"m\",\"indices\":[\"a\",\"b-*\"]}"), MediaTypeRegistry.JSON)
+            .build();
+        MLAgenticIndexRequest request = restAction.getRequest(rest);
+        assertEquals(Mode.RETRIEVE, request.getMode());
+        assertEquals("a,b-*", request.getIndex());
+    }
+
+    public void testCommaSeparatedPathIndex() throws IOException {
+        RestRequest rest = new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY)
+            .withMethod(RestRequest.Method.POST)
+            .withPath("/_plugins/_ml/agentic_index/a,b/_ask")
+            .withParams(new java.util.HashMap<>(Map.of("index", "a,b")))
+            .withContent(new BytesArray("{\"question\":\"q\",\"llm_model_id\":\"m\"}"), MediaTypeRegistry.JSON)
+            .build();
+        assertEquals("a,b", restAction.getRequest(rest).getIndex());
     }
 
     public void testAskRequest() throws IOException {

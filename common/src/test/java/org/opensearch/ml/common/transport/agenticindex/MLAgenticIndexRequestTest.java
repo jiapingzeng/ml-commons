@@ -41,10 +41,14 @@ import org.opensearch.tasks.Task;
 public class MLAgenticIndexRequestTest {
 
     private MLAgenticIndexRequest parse(String json) throws IOException {
+        return parse(json, "docs");
+    }
+
+    private MLAgenticIndexRequest parse(String json, String pathIndex) throws IOException {
         XContentParser parser = JsonXContent.jsonXContent
             .createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, json);
         parser.nextToken();
-        return MLAgenticIndexRequest.parse(parser, "docs", Mode.ASK, "tenant");
+        return MLAgenticIndexRequest.parse(parser, pathIndex, Mode.ASK, "tenant");
     }
 
     @Test
@@ -52,7 +56,7 @@ public class MLAgenticIndexRequestTest {
         MLAgenticIndexRequest request = parse(
             "{\"question\":\"q\",\"llm_model_id\":\"llm\",\"embedding_model_id\":\"emb\",\"embedding_field\":\"vec\","
                 + "\"text_fields\":[\"title\",\"body\"],\"max_rounds\":2,\"max_subqueries\":3,\"k\":7,\"use_index_insight\":true,"
-                + "\"timeout\":\"30s\"}"
+                + "\"timeout\":\"30s\",\"max_indices_selected\":7}"
         );
         assertEquals("docs", request.getIndex());
         assertEquals(Mode.ASK, request.getMode());
@@ -67,6 +71,7 @@ public class MLAgenticIndexRequestTest {
         assertTrue(request.isUseIndexInsight());
         assertEquals(TimeValue.timeValueSeconds(30), request.getTimeout());
         assertEquals("tenant", request.getTenantId());
+        assertEquals(7, request.getMaxIndicesSelected());
         assertNull(request.validate());
     }
 
@@ -79,6 +84,47 @@ public class MLAgenticIndexRequestTest {
         assertEquals(List.of(), request.getTextFields());
         assertFalse(request.isUseIndexInsight());
         assertNull(request.getTimeout());
+        assertEquals(MLAgenticIndexRequest.DEFAULT_MAX_INDICES_SELECTED, request.getMaxIndicesSelected());
+        assertNull(request.validate());
+    }
+
+    @Test
+    public void parse_indicesInBody() throws IOException {
+        MLAgenticIndexRequest request = parse("{\"question\":\"q\",\"llm_model_id\":\"llm\",\"indices\":[\"logs-*\",\"docs\"]}", null);
+        assertEquals("logs-*,docs", request.getIndex());
+        assertNull(request.validate());
+    }
+
+    @Test
+    public void parse_indicesInBodyAndPath() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> parse("{\"indices\":[\"a\"]}"));
+        assertEquals("Set the target index in the path or in indices, not both", e.getMessage());
+    }
+
+    @Test
+    public void parse_invalidIndices() {
+        for (String indices : List.of("[]", "[\" \"]", "[\"a,b\"]")) {
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> parse("{\"indices\":" + indices + "}", null));
+            assertEquals("indices must be a non-empty list of index names, aliases or patterns", e.getMessage());
+        }
+    }
+
+    @Test
+    public void validate_missingIndex() {
+        MLAgenticIndexRequest request = MLAgenticIndexRequest.builder().mode(Mode.ASK).question("q").llmModelId("m").build();
+        assertEquals(List.of("index is required: set it in the path or in the indices body field"), request.validate().validationErrors());
+    }
+
+    @Test
+    public void validate_embeddingModelWithoutFieldDetectsField() {
+        MLAgenticIndexRequest request = MLAgenticIndexRequest
+            .builder()
+            .index("docs")
+            .mode(Mode.ASK)
+            .question("q")
+            .llmModelId("m")
+            .embeddingModelId("emb")
+            .build();
         assertNull(request.validate());
     }
 
@@ -94,16 +140,18 @@ public class MLAgenticIndexRequestTest {
             .builder()
             .index("docs")
             .mode(Mode.RETRIEVE)
-            .embeddingModelId("emb")
+            .embeddingField("vec")
             .maxRounds(0)
             .k(21)
+            .maxIndicesSelected(21)
             .build();
         ActionRequestValidationException e = request.validate();
         assertNotNull(e);
         List<String> errors = e.validationErrors();
         assertTrue(errors.contains("question is required"));
         assertTrue(errors.contains("llm_model_id is required"));
-        assertTrue(errors.contains("embedding_model_id and embedding_field must be set together"));
+        assertTrue(errors.contains("embedding_field requires embedding_model_id"));
+        assertTrue(errors.contains("max_indices_selected must be between 1 and 20"));
         assertTrue(errors.contains("max_rounds must be between 1 and 5"));
         assertTrue(errors.contains("k must be between 1 and 20"));
     }
@@ -118,6 +166,7 @@ public class MLAgenticIndexRequestTest {
             .llmModelId("llm")
             .textFields(List.of("body"))
             .timeout(TimeValue.timeValueSeconds(5))
+            .maxIndicesSelected(3)
             .build();
         BytesStreamOutput out = new BytesStreamOutput();
         request.writeTo(out);
@@ -130,6 +179,7 @@ public class MLAgenticIndexRequestTest {
         assertEquals(List.of("body"), read.getTextFields());
         assertEquals(TimeValue.timeValueSeconds(5), read.getTimeout());
         assertNull(read.getTenantId());
+        assertEquals(3, read.getMaxIndicesSelected());
     }
 
     @Test

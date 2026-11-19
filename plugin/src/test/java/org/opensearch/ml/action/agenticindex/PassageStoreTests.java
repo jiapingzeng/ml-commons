@@ -20,9 +20,13 @@ import org.opensearch.test.OpenSearchTestCase;
 public class PassageStoreTests extends OpenSearchTestCase {
 
     static SearchHit hit(String id, String sourceJson) {
+        return hit("docs", id, sourceJson);
+    }
+
+    static SearchHit hit(String index, String id, String sourceJson) {
         SearchHit hit = new SearchHit(1, id, Map.of(), Map.of());
         hit.sourceRef(new BytesArray(sourceJson));
-        hit.shard(new SearchShardTarget("node", new ShardId("docs", "uuid", 0), null, OriginalIndices.NONE));
+        hit.shard(new SearchShardTarget("node", new ShardId(index, "uuid", 0), null, OriginalIndices.NONE));
         hit.score(1.5f);
         return hit;
     }
@@ -69,6 +73,19 @@ public class PassageStoreTests extends OpenSearchTestCase {
         PassageStore store = new PassageStore(List.of("body"), Set.of(), 5);
         store.add(hit("a", "{\"body\":\"hello\",\"plan\":\"Pro\"}"), 1, 0);
         assertEquals("[P1] doc_id=a plan=Pro\nhello", store.render(store.all()));
+    }
+
+    public void testPerIndexFieldsAndIndexInRender() {
+        Map<String, List<String>> textFields = Map.of("docs-a", List.of("body"), "docs-b", List.of("summary"));
+        PassageStore store = new PassageStore(textFields::get, index -> Set.of("vec"), 5, true);
+        store.add(hit("docs-a", "a", "{\"body\":\"pricing\",\"summary\":\"not text here\"}"), 1, 0);
+        store.add(hit("docs-b", "a", "{\"summary\":\"outage\",\"vec\":[1]}"), 1, 1);
+        assertEquals(2, store.size());
+        assertEquals(
+            "[P1] index=docs-a doc_id=a summary=not text here\npricing\n\n[P2] index=docs-b doc_id=a\noutage",
+            store.render(store.all())
+        );
+        assertEquals("docs-b", store.citation("P2").get("index"));
     }
 
     public void testObjectPathTextFieldsAndParentExcludedFromMetadata() {

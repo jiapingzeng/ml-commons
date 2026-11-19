@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.opensearch.ml.common.settings.MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_MAX_INDICES;
 import static org.opensearch.ml.common.settings.MLCommonsSettings.ML_COMMONS_AGENTIC_INDEX_TIMEOUT;
 
 import java.util.Map;
@@ -24,6 +25,8 @@ import org.opensearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.ActionFilters;
+import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.service.ClusterService;
@@ -71,15 +74,20 @@ public class TransportAgenticIndexActionTests extends OpenSearchTestCase {
 
     private TransportAgenticIndexAction action() {
         ClusterService clusterService = mock(ClusterService.class);
-        when(clusterService.getClusterSettings()).thenReturn(new ClusterSettings(Settings.EMPTY, Set.of(ML_COMMONS_AGENTIC_INDEX_TIMEOUT)));
+        when(clusterService.getClusterSettings())
+            .thenReturn(
+                new ClusterSettings(Settings.EMPTY, Set.of(ML_COMMONS_AGENTIC_INDEX_TIMEOUT, ML_COMMONS_AGENTIC_INDEX_MAX_INDICES))
+            );
         when(clusterService.localNode()).thenReturn(new DiscoveryNode("node-1", buildNewFakeTransportAddress(), Version.CURRENT));
+        when(clusterService.state()).thenReturn(ClusterState.EMPTY_STATE);
         return new TransportAgenticIndexAction(
             mock(TransportService.class),
             mock(ActionFilters.class),
             client,
             clusterService,
             setting,
-            new IndexProfileCache(index -> null, IndexProfileCache.TTL)
+            new IndexProfileCache(index -> null, IndexProfileCache.TTL),
+            new IndexResolver(client, clusterService::state, new IndexNameExpressionResolver(new ThreadContext(Settings.EMPTY)))
         );
     }
 
@@ -98,7 +106,8 @@ public class TransportAgenticIndexActionTests extends OpenSearchTestCase {
                 mock(ActionFilters.class),
                 client,
                 mock(ClusterService.class),
-                setting
+                setting,
+                mock(IndexNameExpressionResolver.class)
             )
         );
     }

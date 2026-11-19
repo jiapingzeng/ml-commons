@@ -143,7 +143,10 @@ public class SparseTokenizerModel extends DLModel {
 
     @Override
     protected void closeResources() {
-        tokenizer = null;
+        if (tokenizer != null) {
+            tokenizer.close();
+            tokenizer = null;
+        }
         idf = null;
     }
 

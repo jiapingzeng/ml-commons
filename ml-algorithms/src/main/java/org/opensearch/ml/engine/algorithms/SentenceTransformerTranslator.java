@@ -30,7 +30,12 @@ public abstract class SentenceTransformerTranslator implements ServingTranslator
     @Override
     public void prepare(TranslatorContext ctx) throws IOException {
         Path path = ctx.getModel().getModelPath();
-        tokenizer = HuggingFaceTokenizer.builder().optPadding(true).optTokenizerPath(path.resolve("tokenizer.json")).build();
+        tokenizer = HuggingFaceTokenizer
+            .builder()
+            .optPadding(true)
+            .optTokenizerPath(path.resolve("tokenizer.json"))
+            .optManager(ctx.getPredictorManager())
+            .build();
     }
 
     @Override

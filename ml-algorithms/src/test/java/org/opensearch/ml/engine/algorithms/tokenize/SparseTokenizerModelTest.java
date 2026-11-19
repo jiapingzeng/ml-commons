@@ -6,7 +6,9 @@
 package org.opensearch.ml.engine.algorithms.tokenize;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -16,10 +18,16 @@ import static org.opensearch.ml.engine.algorithms.DLModel.ML_ENGINE;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.After;
@@ -37,6 +45,7 @@ import org.opensearch.ml.common.input.parameter.textembedding.SparseEmbeddingFor
 import org.opensearch.ml.common.model.MLModelConfig;
 import org.opensearch.ml.common.model.MLModelFormat;
 import org.opensearch.ml.common.model.MLModelState;
+import org.opensearch.ml.common.output.MLOutput;
 import org.opensearch.ml.common.output.model.ModelTensor;
 import org.opensearch.ml.common.output.model.ModelTensorOutput;
 import org.opensearch.ml.common.output.model.ModelTensors;
@@ -47,6 +56,7 @@ import org.opensearch.ml.engine.encryptor.EncryptorImpl;
 import org.opensearch.ml.engine.utils.FileUtils;
 
 import ai.djl.MalformedModelException;
+import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
 import ai.djl.inference.Predictor;
 import ai.djl.modality.Input;
 import ai.djl.modality.Output;
@@ -419,6 +429,93 @@ public class SparseTokenizerModelTest {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    @Test
+    public void close_ClosesTokenizer() throws ReflectiveOperationException {
+        sparseTokenizerModel.initModel(model, params, encryptor);
+        HuggingFaceTokenizer tokenizer = deployedTokenizer();
+        assertFalse(tokenizer.isReleased());
+
+        sparseTokenizerModel.close();
+
+        assertTrue(tokenizer.isReleased());
+        assertFalse(sparseTokenizerModel.isModelReady());
+    }
+
+    @Test
+    public void release_ClosesTokenizer_LaterCloseIsNoOp() throws ReflectiveOperationException {
+        sparseTokenizerModel.initModel(model, params, encryptor);
+        HuggingFaceTokenizer tokenizer = deployedTokenizer();
+
+        sparseTokenizerModel.release();
+        assertTrue(tokenizer.isReleased());
+        assertNull(deployedTokenizer());
+
+        sparseTokenizerModel.close();
+        sparseTokenizerModel.release();
+        assertFalse(sparseTokenizerModel.isModelReady());
+    }
+
+    @Test
+    public void release_DuringPredict_ClosesTokenizerAfterPredictFinishes() throws Exception {
+        sparseTokenizerModel.initModel(model, params, encryptor);
+        HuggingFaceTokenizer tokenizer = deployedTokenizer();
+        CountDownLatch betweenDocs = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        // get(1) pauses predict after the first doc is tokenized
+        List<String> docs = new AbstractList<>() {
+            @Override
+            public String get(int index) {
+                if (index == 1) {
+                    betweenDocs.countDown();
+                    try {
+                        if (!resume.await(10, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("predict was not resumed");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(e);
+                    }
+                    return "That is dog";
+                }
+                return "today is sunny";
+            }
+
+            @Override
+            public int size() {
+                return 2;
+            }
+        };
+        MLInput mlInput = MLInput
+            .builder()
+            .algorithm(FunctionName.SPARSE_TOKENIZE)
+            .inputDataset(TextDocsInputDataSet.builder().docs(docs).build())
+            .build();
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<MLOutput> predict = executor.submit(() -> sparseTokenizerModel.predict(mlInput));
+            assertTrue(betweenDocs.await(10, TimeUnit.SECONDS));
+
+            sparseTokenizerModel.release();
+            assertFalse(tokenizer.isReleased());
+
+            resume.countDown();
+            ModelTensorOutput output = (ModelTensorOutput) predict.get(10, TimeUnit.SECONDS);
+            assertEquals(2, output.getMlModelOutputs().size());
+            assertTrue(tokenizer.isReleased());
+            assertNull(deployedTokenizer());
+        } finally {
+            resume.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    private HuggingFaceTokenizer deployedTokenizer() throws ReflectiveOperationException {
+        Field tokenizerField = SparseTokenizerModel.class.getDeclaredField("tokenizer");
+        tokenizerField.setAccessible(true);
+        return (HuggingFaceTokenizer) tokenizerField.get(sparseTokenizerModel);
     }
 
     @After

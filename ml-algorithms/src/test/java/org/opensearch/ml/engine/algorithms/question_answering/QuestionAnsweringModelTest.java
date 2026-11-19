@@ -19,6 +19,7 @@ import static org.opensearch.ml.engine.algorithms.question_answering.QAConstants
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -53,11 +54,13 @@ import org.opensearch.ml.common.utils.StringUtils;
 import org.opensearch.ml.engine.MLEngine;
 import org.opensearch.ml.engine.ModelHelper;
 import org.opensearch.ml.engine.algorithms.DLModel;
+import org.opensearch.ml.engine.algorithms.SentenceTransformerTranslator;
 import org.opensearch.ml.engine.encryptor.Encryptor;
 import org.opensearch.ml.engine.encryptor.EncryptorImpl;
 import org.opensearch.ml.engine.utils.FileUtils;
 
 import ai.djl.Model;
+import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
 import ai.djl.inference.Predictor;
 import ai.djl.modality.Input;
 import ai.djl.modality.Output;
@@ -1043,6 +1046,39 @@ public class QuestionAnsweringModelTest {
         assertEquals("Second sentence with Integer position.", result.get(0).get(FIELD_TEXT));
         assertEquals("First sentence with Double position.", result.get(1).get(FIELD_TEXT));
         assertEquals("Third sentence with higher position.", result.get(2).get(FIELD_TEXT));
+    }
+
+    @Test
+    public void close_ClosesTokenizerOfStandardQATranslator() throws ReflectiveOperationException {
+        questionAnsweringModel.initModel(mlModel, params, encryptor);
+        Field tokenizerField = SentenceTransformerTranslator.class.getDeclaredField("tokenizer");
+        tokenizerField.setAccessible(true);
+        HuggingFaceTokenizer tokenizer = (HuggingFaceTokenizer) tokenizerField
+            .get(questionAnsweringModel.getTranslator(PYTORCH_ENGINE, null));
+        assertFalse(tokenizer.isReleased());
+
+        questionAnsweringModel.close();
+
+        assertTrue(tokenizer.isReleased());
+    }
+
+    @Test
+    public void close_ClosesTokenizerOfSentenceHighlightingTranslator() {
+        MLModelConfig modelConfig = QuestionAnsweringModelConfig
+            .builder()
+            .modelType(SENTENCE_HIGHLIGHTING_TYPE)
+            .frameworkType(QuestionAnsweringModelConfig.FrameworkType.HUGGINGFACE_TRANSFORMERS)
+            .build();
+        Map<String, Object> sentenceParams = new HashMap<>(params);
+        sentenceParams.put(MODEL_ZIP_FILE, sentenceHighlightingModelZipFile);
+        questionAnsweringModel.initModel(mlModel.toBuilder().modelConfig(modelConfig).build(), sentenceParams, encryptor);
+        HuggingFaceTokenizer tokenizer = ((SentenceHighlightingQATranslator) questionAnsweringModel
+            .getTranslator(PYTORCH_ENGINE, modelConfig)).getTokenizer();
+        assertFalse(tokenizer.isReleased());
+
+        questionAnsweringModel.close();
+
+        assertTrue(tokenizer.isReleased());
     }
 
     @After

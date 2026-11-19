@@ -168,6 +168,7 @@ public class SentenceHighlightingQATranslator implements ServingTranslator {
             .optWithOverflowingTokens(withOverflowingTokens)
             .optTruncateSecondOnly()
             .optPadding(padding)
+            .optManager(ctx.getPredictorManager())
             .build();
     }
 

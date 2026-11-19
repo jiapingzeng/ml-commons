@@ -9,6 +9,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -34,6 +35,7 @@ import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.opensearch.ml.common.FunctionName;
 import org.opensearch.ml.common.MLModel;
@@ -133,6 +135,9 @@ public class QuestionAnsweringModelTest {
         when(manager.create((long[]) any())).thenReturn(indiceNdArray);
         doNothing().when(indiceNdArray).setName(any());
         NDList outputList = questionAnsweringTranslator.processInput(translatorContext, input);
+        ArgumentCaptor<Object> encoding = ArgumentCaptor.forClass(Object.class);
+        verify(translatorContext).setAttachment(eq("encoding"), encoding.capture());
+        when(translatorContext.getAttachment("encoding")).thenReturn(encoding.getValue());
         assertEquals(2, outputList.size());
         Iterator<NDArray> iterator = outputList.iterator();
         while (iterator.hasNext()) {

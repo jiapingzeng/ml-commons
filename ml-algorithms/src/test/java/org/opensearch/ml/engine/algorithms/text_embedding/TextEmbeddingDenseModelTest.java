@@ -6,6 +6,7 @@
 package org.opensearch.ml.engine.algorithms.text_embedding;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -45,6 +46,7 @@ import org.opensearch.ml.common.input.parameter.textembedding.AsymmetricTextEmbe
 import org.opensearch.ml.common.model.MLModelFormat;
 import org.opensearch.ml.common.model.MLModelState;
 import org.opensearch.ml.common.model.TextEmbeddingModelConfig;
+import org.opensearch.ml.common.output.model.MLResultDataType;
 import org.opensearch.ml.common.output.model.ModelResultFilter;
 import org.opensearch.ml.common.output.model.ModelTensor;
 import org.opensearch.ml.common.output.model.ModelTensorOutput;
@@ -234,6 +236,56 @@ public class TextEmbeddingDenseModelTest {
         int modelMaxLength = 512;
         MLModelFormat modelFormat = MLModelFormat.ONNX;
         initModel_predict_HuggingfaceModel(modelFile, modelType, poolingMode, normalize, modelMaxLength, modelFormat, dimension);
+    }
+
+    @Test
+    public void initModel_predict_ONNX_ResultFilter_disablesOnnxAlternativeEngine() throws URISyntaxException {
+        String previous = System.getProperty("ai.djl.onnx.disable_alternative");
+        System.clearProperty("ai.djl.onnx.disable_alternative");
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put(MODEL_HELPER, modelHelper);
+            params.put(MODEL_ZIP_FILE, new File(getClass().getResource("all-MiniLM-L6-v2_onnx.zip").toURI()));
+            params.put(ML_ENGINE, mlEngine);
+            TextEmbeddingModelConfig onnxModelConfig = modelConfig
+                .toBuilder()
+                .frameworkType(HUGGINGFACE_TRANSFORMERS)
+                .poolingMode(TextEmbeddingModelConfig.PoolingMode.MEAN)
+                .normalizeResult(true)
+                .build();
+            MLModel mlModel = model.toBuilder().modelFormat(MLModelFormat.ONNX).modelConfig(onnxModelConfig).build();
+            textEmbeddingDenseModel.initModel(mlModel, params, encryptor);
+            assertEquals("true", System.getProperty("ai.djl.onnx.disable_alternative"));
+
+            ModelResultFilter resultFilter = ModelResultFilter
+                .builder()
+                .returnBytes(true)
+                .returnNumber(true)
+                .targetResponse(Arrays.asList(SENTENCE_EMBEDDING))
+                .build();
+            TextDocsInputDataSet textDocsInputDataSet = inputDataSet.toBuilder().resultFilter(resultFilter).build();
+            MLInput mlInput = MLInput.builder().algorithm(FunctionName.TEXT_EMBEDDING).inputDataset(textDocsInputDataSet).build();
+            ModelTensorOutput output = (ModelTensorOutput) textEmbeddingDenseModel.predict(mlInput);
+            List<ModelTensors> mlModelOutputs = output.getMlModelOutputs();
+            assertEquals(2, mlModelOutputs.size());
+            for (ModelTensors tensors : mlModelOutputs) {
+                assertEquals(1, tensors.getMlModelTensors().size());
+                ModelTensor tensor = tensors.getMlModelTensors().get(0);
+                assertEquals(SENTENCE_EMBEDDING, tensor.getName());
+                assertEquals(MLResultDataType.FLOAT32, tensor.getDataType());
+                assertTrue(Arrays.equals(new long[] { dimension }, tensor.getShape()));
+                assertEquals(dimension, tensor.getData().length);
+                // the ONNX translator never returned bytes, so return_bytes has nothing to keep
+                assertNull(tensor.getByteBuffer());
+            }
+        } finally {
+            textEmbeddingDenseModel.close();
+            if (previous == null) {
+                System.clearProperty("ai.djl.onnx.disable_alternative");
+            } else {
+                System.setProperty("ai.djl.onnx.disable_alternative", previous);
+            }
+        }
     }
 
     @Test

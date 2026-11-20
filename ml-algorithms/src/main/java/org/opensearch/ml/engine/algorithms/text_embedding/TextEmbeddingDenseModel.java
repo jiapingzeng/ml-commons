@@ -61,4 +61,10 @@ public class TextEmbeddingDenseModel extends TextEmbeddingModel {
         }
         return null;
     }
+
+    @Override
+    protected boolean requiresOnnxAlternativeEngine() {
+        // ONNXSentenceTransformerTextEmbeddingTranslator pools in Java and runs no NDArray operations
+        return false;
+    }
 }

@@ -35,6 +35,7 @@ import org.opensearch.ml.common.output.model.ModelTensors;
 import org.opensearch.ml.engine.MLEngine;
 import org.opensearch.ml.engine.ModelHelper;
 import org.opensearch.ml.engine.Predictable;
+import org.opensearch.ml.engine.annotation.Function;
 import org.opensearch.ml.engine.encryptor.Encryptor;
 import org.opensearch.ml.engine.utils.ZipUtils;
 
@@ -58,6 +59,9 @@ public abstract class DLModel implements Predictable {
     public static final String MODEL_ZIP_FILE = "model_zip_file";
     public static final String MODEL_HELPER = "model_helper";
     public static final String ML_ENGINE = "ml_engine";
+    static final String ONNX_DISABLE_ALTERNATIVE = "ai.djl.onnx.disable_alternative";
+    // read before ml-commons first writes the property, so it reflects the node's JVM options
+    private static final boolean ONNX_ALTERNATIVE_DISABLED_AT_STARTUP = Boolean.getBoolean(ONNX_DISABLE_ALTERNATIVE);
     protected ModelHelper modelHelper;
     protected MLEngine mlEngine;
     protected String modelId;
@@ -180,6 +184,74 @@ public abstract class DLModel implements Predictable {
 
     public void warmUp(Predictor predictor, String modelId, MLModelConfig modelConfig) throws TranslateException {}
 
+    /**
+     * Whether this model's ONNX translator runs NDArray operations that DJL's OnnxRuntime engine delegates to its
+     * alternative engine (PyTorch). Models that return false never make DJL load libtorch for ONNX inference.
+     */
+    protected boolean requiresOnnxAlternativeEngine() {
+        return true;
+    }
+
+    /**
+     * DJL reads {@value #ONNX_DISABLE_ALTERNATIVE} each time it creates an ONNX NDManager until it first resolves the
+     * alternative engine, then keeps that engine for the life of the JVM. It stays disabled until a model that needs
+     * it is deployed, and is never disabled again after that. A node started with the property set to true keeps it:
+     * models that need the alternative engine fail to deploy there.
+     */
+    static void configureOnnxAlternativeEngine(String modelId, FunctionName functionName, boolean required) {
+        configureOnnxAlternativeEngine(
+            modelId,
+            functionName,
+            required,
+            ONNX_ALTERNATIVE_DISABLED_AT_STARTUP,
+            () -> Engine.getEngine(ONNX_ENGINE).getAlternativeEngine()
+        );
+    }
+
+    static synchronized void configureOnnxAlternativeEngine(
+        String modelId,
+        FunctionName functionName,
+        boolean required,
+        boolean disabledAtStartup,
+        Runnable resolveAlternativeEngine
+    ) {
+        String previous = System.getProperty(ONNX_DISABLE_ALTERNATIVE);
+        if (required) {
+            if (disabledAtStartup) {
+                throw new IllegalArgumentException(
+                    "ONNX "
+                        + functionName
+                        + " models need the PyTorch runtime, but this node sets "
+                        + ONNX_DISABLE_ALTERNATIVE
+                        + "=true. Remove that JVM option, or deploy the model in TORCH_SCRIPT format."
+                );
+            }
+            if (!"false".equals(previous)) {
+                System.setProperty(ONNX_DISABLE_ALTERNATIVE, "false");
+                try {
+                    // resolve the alternative engine on this thread before the model's NDManagers are created
+                    resolveAlternativeEngine.run();
+                } catch (RuntimeException | Error e) {
+                    // otherwise every later ONNX NDManager, including those of deployed models, retries and fails
+                    restoreOnnxDisableAlternative(previous);
+                    throw e;
+                }
+                log.info("Set {} from {} to false for model {}", ONNX_DISABLE_ALTERNATIVE, previous, modelId);
+            }
+        } else if (previous == null) {
+            System.setProperty(ONNX_DISABLE_ALTERNATIVE, "true");
+            log.info("Set {} from null to true for model {}", ONNX_DISABLE_ALTERNATIVE, modelId);
+        }
+    }
+
+    private static void restoreOnnxDisableAlternative(String value) {
+        if (value == null) {
+            System.clearProperty(ONNX_DISABLE_ALTERNATIVE);
+        } else {
+            System.setProperty(ONNX_DISABLE_ALTERNATIVE, value);
+        }
+    }
+
     protected void doLoadModel(
         List<Predictor<Input, Output>> predictorList,
         List<ZooModel<Input, Output>> modelList,
@@ -266,6 +338,13 @@ public abstract class DLModel implements Predictable {
                     System.setProperty("ai.djl.pytorch.num_interop_threads", "1");
                     System.setProperty("ai.djl.pytorch.num_threads", "1");
                     Thread.currentThread().setContextClassLoader(ai.djl.Model.class.getClassLoader());
+                    if (ONNX_ENGINE.equals(engine)) {
+                        configureOnnxAlternativeEngine(
+                            modelId,
+                            getClass().getAnnotation(Function.class).value(),
+                            requiresOnnxAlternativeEngine()
+                        );
+                    }
                     Path modelPath = mlEngine.getModelCachePath(modelId, modelName, version);
                     File pathFile = new File(modelPath.toUri());
                     if (pathFile.exists()) {

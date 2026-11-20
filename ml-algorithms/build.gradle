@@ -127,6 +127,28 @@ configurations.all {
     resolutionStrategy.force group: 'software.amazon.awssdk', name:'bom', version:"${versions.aws}"
 }
 
+def onnxWithoutAlternativeEngineTestClass = 'org.opensearch.ml.engine.algorithms.text_embedding.ONNXTextEmbeddingWithoutAlternativeEngineTest'
+
+test {
+    filter {
+        // runs only in onnxWithoutAlternativeEngineTest
+        excludeTestsMatching onnxWithoutAlternativeEngineTestClass
+    }
+}
+
+// DJL keeps the ONNX alternative engine for the life of the JVM once any test resolves it, so this needs its own JVM
+task onnxWithoutAlternativeEngineTest(type: Test) {
+    description = 'Runs ONNX text embedding inference with the PyTorch alternative engine disabled.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    systemProperty 'ai.djl.onnx.disable_alternative', 'true'
+    filter {
+        includeTestsMatching onnxWithoutAlternativeEngineTestClass
+    }
+}
+check.dependsOn onnxWithoutAlternativeEngineTest
+
 jacocoTestReport {
     reports {
         xml.getRequired().set(true)
@@ -134,7 +156,8 @@ jacocoTestReport {
         html.getRequired().set(true)
     }
 
-    dependsOn test
+    executionData test, onnxWithoutAlternativeEngineTest
+    dependsOn test, onnxWithoutAlternativeEngineTest
 }
 
 List<String> jacocoExclusions = [
@@ -157,6 +180,7 @@ jacocoTestCoverageVerification {
             }
         }
     }
+    executionData test, onnxWithoutAlternativeEngineTest
     dependsOn jacocoTestReport
 }
 check.dependsOn jacocoTestCoverageVerification

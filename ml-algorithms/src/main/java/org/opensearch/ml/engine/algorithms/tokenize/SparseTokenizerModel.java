@@ -157,4 +157,10 @@ public class SparseTokenizerModel extends DLModel {
         return null;
     }
 
+    @Override
+    protected boolean requiresOnnxAlternativeEngine() {
+        // only the tokenizer is loaded; no ONNX inference runs
+        return false;
+    }
+
 }

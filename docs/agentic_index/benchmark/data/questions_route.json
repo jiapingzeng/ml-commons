@@ -1,0 +1,502 @@
+{
+ "writer": "us.anthropic.claude-sonnet-5-5",
+ "usage": {
+  "inputTokens": 78927,
+  "outputTokens": 5655,
+  "totalTokens": 84582,
+  "cacheReadInputTokens": 0,
+  "cacheWriteInputTokens": 0
+ },
+ "packet_ids": [
+  "acme-t001",
+  "acme-t002",
+  "acme-t003",
+  "acme-t004",
+  "acme-t005",
+  "acme-t006",
+  "acme-t007",
+  "acme-t008",
+  "acme-t009",
+  "acme-t010",
+  "acme-t011",
+  "acme-t012",
+  "acme-t013",
+  "acme-t014",
+  "acme-t015",
+  "faq-api-keys-p1-c1",
+  "faq-api-keys-p1-c2",
+  "faq-billing-owner-p1-c1",
+  "faq-billing-owner-p1-c2",
+  "faq-cancel-p1-c1",
+  "faq-cancel-p1-c2",
+  "faq-delete-account-p1-c1",
+  "faq-delete-account-p1-c2",
+  "faq-device-limit-p1-c1",
+  "faq-device-limit-p1-c2",
+  "faq-downgrade-p1-c1",
+  "faq-downgrade-p1-c2",
+  "faq-export-p1-c1",
+  "faq-export-p1-c2",
+  "faq-free-limit-p1-c1",
+  "faq-free-limit-p1-c2",
+  "faq-guests-free-p1-c1",
+  "faq-guests-free-p1-c2",
+  "faq-invoice-currency-p1-c1",
+  "faq-invoice-currency-p1-c2",
+  "faq-mobile-p1-c1",
+  "faq-mobile-p1-c2",
+  "faq-nonprofit-p1-c1",
+  "faq-nonprofit-p1-c2",
+  "faq-payment-p1-c1",
+  "faq-payment-p1-c2",
+  "faq-refunds-p1-c1",
+  "faq-refunds-p1-c2",
+  "faq-seats-p1-c1",
+  "faq-seats-p1-c2",
+  "faq-sla-claim-p1-c1",
+  "faq-sla-claim-p1-c2",
+  "faq-sso-setup-time-p1-c1",
+  "faq-sso-setup-time-p1-c2",
+  "faq-storage-full-p1-c1",
+  "faq-storage-full-p1-c2",
+  "globex-t001",
+  "globex-t002",
+  "globex-t003",
+  "globex-t004",
+  "globex-t005",
+  "globex-t006",
+  "globex-t007",
+  "globex-t008",
+  "globex-t009",
+  "globex-t010",
+  "globex-t011",
+  "globex-t012",
+  "globex-t013",
+  "globex-t014",
+  "globex-t015",
+  "inc-2026-06-18-p1-c1",
+  "inc-2026-06-18-p1-c2",
+  "inc-2026-08-03-p1-c1",
+  "inc-2026-08-03-p1-c2",
+  "inc-2026-09-21-p1-c1",
+  "inc-2026-09-21-p1-c2",
+  "inc-2026-10-02-p1-c1",
+  "inc-2026-10-02-p1-c2",
+  "inc-2026-11-12-p1-c1",
+  "inc-2026-11-12-p1-c2",
+  "initech-t001",
+  "initech-t002",
+  "initech-t003",
+  "initech-t004",
+  "initech-t005",
+  "initech-t006",
+  "initech-t007",
+  "initech-t008",
+  "initech-t009",
+  "initech-t010",
+  "initech-t011",
+  "initech-t012",
+  "initech-t013",
+  "initech-t014",
+  "initech-t015",
+  "pricing-2024-p1-c1",
+  "pricing-2024-p1-c2",
+  "pricing-2024-p1-c3",
+  "pricing-2024-p2-c1",
+  "pricing-2024-p2-c2",
+  "pricing-2025-p1-c1",
+  "pricing-2025-p1-c2",
+  "pricing-2025-p2-c1",
+  "pricing-2025-p2-c2",
+  "pricing-2026-03-p1-c1",
+  "pricing-2026-03-p1-c2",
+  "pricing-2026-03-p2-c1",
+  "pricing-2026-03-p2-c2",
+  "pricing-2026-09-p1-c1",
+  "pricing-2026-09-p1-c2",
+  "pricing-2026-09-p2-c1",
+  "pricing-2026-09-p2-c2",
+  "pricing-2026-09-p3-c1",
+  "pricing-2026-09-p3-c2",
+  "pricing-2026-09-p3-c3",
+  "pricing-2026-09-p4-c1",
+  "pricing-2026-09-p4-c2",
+  "pricing-2026-09-p5-c1",
+  "pricing-2026-09-p5-c2",
+  "pricing-2026-09-p6-c1",
+  "pricing-2026-09-p6-c2",
+  "rn-3-10-0-c1",
+  "rn-3-10-0-c10",
+  "rn-3-10-0-c11",
+  "rn-3-10-0-c12",
+  "rn-3-10-0-c13",
+  "rn-3-10-0-c14",
+  "rn-3-10-0-c15",
+  "rn-3-10-0-c16",
+  "rn-3-10-0-c17",
+  "rn-3-10-0-c18",
+  "rn-3-10-0-c19",
+  "rn-3-10-0-c2",
+  "rn-3-10-0-c20",
+  "rn-3-10-0-c21",
+  "rn-3-10-0-c22",
+  "rn-3-10-0-c23",
+  "rn-3-10-0-c24",
+  "rn-3-10-0-c25",
+  "rn-3-10-0-c3",
+  "rn-3-10-0-c4",
+  "rn-3-10-0-c5",
+  "rn-3-10-0-c6",
+  "rn-3-10-0-c7",
+  "rn-3-10-0-c8",
+  "rn-3-10-0-c9",
+  "rn-3-6-0-c1",
+  "rn-3-6-0-c10",
+  "rn-3-6-0-c11",
+  "rn-3-6-0-c12",
+  "rn-3-6-0-c13",
+  "rn-3-6-0-c14",
+  "rn-3-6-0-c15",
+  "rn-3-6-0-c16",
+  "rn-3-6-0-c17",
+  "rn-3-6-0-c18",
+  "rn-3-6-0-c19",
+  "rn-3-6-0-c2",
+  "rn-3-6-0-c20",
+  "rn-3-6-0-c3",
+  "rn-3-6-0-c4",
+  "rn-3-6-0-c5",
+  "rn-3-6-0-c6",
+  "rn-3-6-0-c7",
+  "rn-3-6-0-c8",
+  "rn-3-6-0-c9",
+  "rn-3-7-0-c1",
+  "rn-3-7-0-c10",
+  "rn-3-7-0-c11",
+  "rn-3-7-0-c12",
+  "rn-3-7-0-c13",
+  "rn-3-7-0-c14",
+  "rn-3-7-0-c15",
+  "rn-3-7-0-c16",
+  "rn-3-7-0-c17",
+  "rn-3-7-0-c18",
+  "rn-3-7-0-c19",
+  "rn-3-7-0-c2",
+  "rn-3-7-0-c20",
+  "rn-3-7-0-c21",
+  "rn-3-7-0-c3",
+  "rn-3-7-0-c4",
+  "rn-3-7-0-c5",
+  "rn-3-7-0-c6",
+  "rn-3-7-0-c7",
+  "rn-3-7-0-c8",
+  "rn-3-7-0-c9",
+  "rn-3-8-0-c1",
+  "rn-3-8-0-c10",
+  "rn-3-8-0-c11",
+  "rn-3-8-0-c12",
+  "rn-3-8-0-c13",
+  "rn-3-8-0-c14",
+  "rn-3-8-0-c15",
+  "rn-3-8-0-c16",
+  "rn-3-8-0-c17",
+  "rn-3-8-0-c18",
+  "rn-3-8-0-c19",
+  "rn-3-8-0-c2",
+  "rn-3-8-0-c20",
+  "rn-3-8-0-c21",
+  "rn-3-8-0-c3",
+  "rn-3-8-0-c4",
+  "rn-3-8-0-c5",
+  "rn-3-8-0-c6",
+  "rn-3-8-0-c7",
+  "rn-3-8-0-c8",
+  "rn-3-8-0-c9",
+  "rn-3-9-0-c1",
+  "rn-3-9-0-c10",
+  "rn-3-9-0-c11",
+  "rn-3-9-0-c12",
+  "rn-3-9-0-c13",
+  "rn-3-9-0-c14",
+  "rn-3-9-0-c15",
+  "rn-3-9-0-c16",
+  "rn-3-9-0-c17",
+  "rn-3-9-0-c18",
+  "rn-3-9-0-c19",
+  "rn-3-9-0-c2",
+  "rn-3-9-0-c20",
+  "rn-3-9-0-c21",
+  "rn-3-9-0-c22",
+  "rn-3-9-0-c23",
+  "rn-3-9-0-c24",
+  "rn-3-9-0-c25",
+  "rn-3-9-0-c3",
+  "rn-3-9-0-c4",
+  "rn-3-9-0-c5",
+  "rn-3-9-0-c6",
+  "rn-3-9-0-c7",
+  "rn-3-9-0-c8",
+  "rn-3-9-0-c9",
+  "rn-analytics-2.3-p1-c1",
+  "rn-analytics-2.3-p1-c2",
+  "rn-analytics-2.3.1-p1-c1",
+  "rn-analytics-2.3.1-p1-c2",
+  "rn-analytics-2.4-p1-c1",
+  "rn-analytics-2.4-p1-c2",
+  "rn-analytics-2.5-p1-c1",
+  "rn-gateway-3.0-p1-c1",
+  "rn-gateway-3.0-p1-c2",
+  "rn-gateway-3.0.1-p1-c1",
+  "rn-gateway-3.0.1-p1-c2",
+  "rn-gateway-3.1-p1-c1",
+  "rn-gateway-3.1-p1-c2",
+  "rn-gateway-3.2-p1-c1",
+  "rn-gateway-3.2-p1-c2",
+  "rn-platform-2026-06-p1-c1",
+  "rn-platform-2026-06-p1-c2",
+  "rn-platform-2026-07-p1-c1",
+  "rn-platform-2026-07-p1-c2",
+  "rn-platform-2026-08-p1-c1",
+  "rn-platform-2026-08-p1-c2",
+  "rn-platform-2026-09-p1-c1",
+  "rn-platform-2026-09-p1-c2",
+  "rn-platform-2026-10-p1-c1",
+  "rn-platform-2026-10-p1-c2",
+  "rn-platform-2026-11-p1-c1",
+  "rn-platform-2026-11-p1-c2",
+  "rn-sync-5.0-p1-c1",
+  "rn-sync-5.0-p1-c2",
+  "rn-sync-5.0.1-p1-c1",
+  "rn-sync-5.1-p1-c1",
+  "rn-sync-5.1.1-p1-c1",
+  "rn-sync-5.1.1-p1-c2",
+  "rn-sync-5.2-p1-c1",
+  "rn-sync-5.2.1-p1-c1",
+  "rn-sync-5.2.1-p1-c2",
+  "rn-sync-5.3-p1-c1",
+  "rn-sync-5.3-p1-c2",
+  "umbrella-t001",
+  "umbrella-t002",
+  "umbrella-t003",
+  "umbrella-t004",
+  "umbrella-t005",
+  "umbrella-t006",
+  "umbrella-t007",
+  "umbrella-t008",
+  "umbrella-t009",
+  "umbrella-t010",
+  "umbrella-t011",
+  "umbrella-t012",
+  "umbrella-t013",
+  "umbrella-t014",
+  "umbrella-t015"
+ ],
+ "questions": [
+  {
+   "q": "In OpenSearch 3.10, what is the default value of the new PPL setting that limits how many steps a single regex parse or rex match can take?",
+   "kind": "route_version",
+   "expect": "The dynamic setting plugins.ppl.regex.match.limit defaults to 100000 steps per parse or rex regex match.",
+   "gold": [
+    "rn-3-10-0-c3"
+   ],
+   "ok": [],
+   "gold_index": [
+    "release-notes-opensearch-3.10"
+   ],
+   "grading": "Correct: names the PPL regex match limit setting with default 100000 (from 3.10). Partial: describes the setting but omits the default. Wrong: any other value, or an answer from another release's notes."
+  },
+  {
+   "q": "Which additional scalar quantization levels did OpenSearch 3.9 add for Faiss and Lucene next to 1-bit, and what compression does each give?",
+   "kind": "route_version",
+   "expect": "3.9 added 2-bit scalar quantization (x16 compression) and 4-bit (x8), alongside the existing 1-bit (x32), on the Faiss and Lucene engines.",
+   "gold": [
+    "rn-3-9-0-c2"
+   ],
+   "ok": [
+    "rn-3-9-0-c11"
+   ],
+   "gold_index": [
+    "release-notes-opensearch-3.9"
+   ],
+   "grading": "Correct: 2-bit x16 and 4-bit x8. Partial: mentions 2-bit and 4-bit without ratios. Wrong: attributes the half_float 2/4-bit support (3.10) as the answer, or gives 1-bit only."
+  },
+  {
+   "q": "What streaming methods did OpenSearch 3.8 add for sending ML predictions and agent output token by token over gRPC?",
+   "kind": "route_version",
+   "expect": "PredictModelStream and ExecuteAgentStream, which stream output token by token from remote models using protocol buffers over HTTP/2.",
+   "gold": [
+    "rn-3-8-0-c2"
+   ],
+   "ok": [
+    "rn-3-8-0-c6"
+   ],
+   "gold_index": [
+    "release-notes-opensearch-3.8"
+   ],
+   "grading": "Correct: names PredictModelStream and ExecuteAgentStream (3.8). Partial: says gRPC streaming was added without method names. Wrong: cites a different release or unrelated feature."
+  },
+  {
+   "q": "How did OpenSearch 3.7 let operators preview what an index lifecycle policy would do without changing anything?",
+   "kind": "route_version",
+   "expect": "3.7 added the ISM Simulate API, which evaluates every transition condition against live index metrics and reports the next state without modifying cluster state.",
+   "gold": [
+    "rn-3-7-0-c3"
+   ],
+   "ok": [],
+   "gold_index": [
+    "release-notes-opensearch-3.7"
+   ],
+   "grading": "Correct: ISM Simulate API in 3.7 that reports next state without modifying cluster state. Partial: names the API only. Wrong: an answer based on another release."
+  },
+  {
+   "q": "What new data source connector did Nimbus Analytics get in the June 2026 release notes, and which plans can use it?",
+   "kind": "route_month",
+   "expect": "Nimbus Analytics 2.3 added the BigQuery data source connector, available on Starter, Pro and Enterprise.",
+   "gold": [
+    "rn-analytics-2.3-p1-c1"
+   ],
+   "ok": [
+    "rn-analytics-2.3-p1-c2"
+   ],
+   "gold_index": [
+    "release-notes-nimbus-2026.06"
+   ],
+   "grading": "Correct: BigQuery connector, Starter/Pro/Enterprise. Partial: connector without plans. Wrong: a feature from another month's notes."
+  },
+  {
+   "q": "What changed for Nimbus Analytics Pro dashboards in the September 2026 release?",
+   "kind": "route_month",
+   "expect": "Analytics 2.4 raised the Pro dashboard widget limit from 25 to 40, applied automatically to existing Pro workspaces.",
+   "gold": [
+    "rn-analytics-2.4-p1-c1"
+   ],
+   "ok": [
+    "rn-analytics-2.4-p1-c2"
+   ],
+   "gold_index": [
+    "release-notes-nimbus-2026.09"
+   ],
+   "grading": "Correct: widget limit 25 to 40 for Pro. Partial: says the limit increased without numbers. Wrong: October's Enterprise changes (1-minute refresh, PDF export) or other months."
+  },
+  {
+   "q": "What did Nimbus announce in November 2026 about SMS codes for two-factor authentication, and what should users do?",
+   "kind": "route_month",
+   "expect": "SMS two-factor codes will be removed on March 31, 2027. Users should switch to an authenticator app or a passkey before then and remove SMS as a method.",
+   "gold": [
+    "rn-platform-2026-11-p1-c1"
+   ],
+   "ok": [
+    "rn-platform-2026-11-p1-c2"
+   ],
+   "gold_index": [
+    "release-notes-nimbus-2026.11"
+   ],
+   "grading": "Correct: removal date March 31, 2027 and switching to an authenticator app or passkey. Partial: date only. Wrong: citing the August passkey 2FA addition as the removal announcement."
+  },
+  {
+   "q": "Under the Nimbus pricing currently in effect, what are the daily API request quota and the per-second burst limit for a Pro workspace's Gateway?",
+   "kind": "route_pricing",
+   "expect": "Pro workspaces get 100,000 requests per day and a burst limit of 100 requests per second.",
+   "gold": [
+    "pricing-2026-09-p3-c1",
+    "pricing-2026-09-p3-c2"
+   ],
+   "ok": [],
+   "gold_index": [
+    "pricing-nimbus-2026.09"
+   ],
+   "grading": "Correct: 100,000 daily and 100 rps for Pro. Partial: only one of the two values. Wrong: 50 rps burst (2025 archive) or values for another plan."
+  },
+  {
+   "q": "Per the pricing sheet that took effect March 1, 2026, how much storage did each Pro user get and was single sign-on available on Pro?",
+   "kind": "route_pricing",
+   "expect": "Each Pro user received 1 TB of storage, and SSO was included in Enterprise only, so Pro did not have it.",
+   "gold": [
+    "pricing-2026-03-p1-c2"
+   ],
+   "ok": [],
+   "gold_index": [
+    "pricing-nimbus-2026.03"
+   ],
+   "grading": "Correct: 1 TB per Pro user and SSO Enterprise-only. Partial: only storage. Wrong: saying SSO was on Pro (that is the September 15, 2026 sheet) or 500 GB (2025 sheet)."
+  },
+  {
+   "q": "What did Globex report about the Gateway failing for several minutes with the status page showing nothing, and how many users were affected?",
+   "kind": "route_tenant",
+   "expect": "Globex reported that Gateway calls failed with E5003 for several minutes while the status page showed nothing; about 23 users were affected, first seen August 2, 2026.",
+   "gold": [
+    "globex-t009"
+   ],
+   "ok": [],
+   "gold_index": [
+    "tenant-globex-tickets"
+   ],
+   "grading": "Correct: E5003 outage report, about 23 users, first seen Aug 2, 2026. Partial: report without user count. Wrong: another tenant's similar 503 ticket (e.g. Acme, Initech, Umbrella) or Globex's 429 tickets."
+  },
+  {
+   "q": "What did Acme ask about single sign-on in its support tickets, and how many users were affected?",
+   "kind": "route_tenant",
+   "expect": "Acme (Starter plan) said it wants to enforce SSO for all members, currently signs in with passwords, and asked which plan it needs; about 2 users affected, first seen October 6, 2026.",
+   "gold": [
+    "acme-t007"
+   ],
+   "ok": [],
+   "gold_index": [
+    "tenant-acme-tickets"
+   ],
+   "grading": "Correct: Acme's SSO plan question with about 2 users. Partial: topic without count. Wrong: user counts from Globex, Initech or Umbrella SSO tickets."
+  },
+  {
+   "q": "What did Umbrella report about a replaced laptop that could not sync, and how many users were affected?",
+   "kind": "route_tenant",
+   "expect": "Umbrella reported that a new laptop showed E4019 because the old device still counted against the device limit; about 33 users affected, first seen October 15, 2026.",
+   "gold": [
+    "umbrella-t014"
+   ],
+   "ok": [],
+   "gold_index": [
+    "tenant-umbrella-tickets"
+   ],
+   "grading": "Correct: E4019 device limit issue with about 33 users. Partial: issue without count. Wrong: Acme's or Globex's similar tickets with different counts."
+  },
+  {
+   "q": "How long did the Nimbus Gateway outage in the US region on November 12, 2026 last, and what caused it?",
+   "kind": "route_product",
+   "expect": "Gateway in the US region returned E5003 for 47 minutes. A configuration push removed capacity from the request routers, so the remaining routers rejected requests they could not handle.",
+   "gold": [
+    "inc-2026-11-12-p1-c1"
+   ],
+   "ok": [
+    "inc-2026-11-12-p1-c2"
+   ],
+   "gold_index": [
+    "incident-reports-2026.q4"
+   ],
+   "grading": "Correct: 47 minutes and the config push removing router capacity. Partial: duration only. Wrong: other incidents (September 21 webhook delays, October 2 Analytics refresh failures)."
+  },
+  {
+   "q": "According to the Gateway help center, how long do API keys last before they expire, and which error shows up when an expired key is used?",
+   "kind": "route_product",
+   "expect": "API keys expire after 1 year, and calls with an expired key return error E4011. The fix is to create a new key under Settings > Developer > API keys.",
+   "gold": [
+    "faq-api-keys-p1-c1"
+   ],
+   "ok": [
+    "faq-api-keys-p1-c2"
+   ],
+   "gold_index": [
+    "support-help-nimbus-gateway"
+   ],
+   "grading": "Correct: 1 year and E4011. Partial: only one. Wrong: other error codes such as E4290 or E5003."
+  },
+  {
+   "q": "What did the Nimbus release notes for May 2026 announce for Nimbus Platform?",
+   "kind": "no_answer",
+   "expect": "No document covers May 2026 Nimbus release notes; the available monthly notes start in June 2026, so the cluster cannot answer this.",
+   "gold": [],
+   "ok": [],
+   "gold_index": [],
+   "grading": "Correct: states the information is not available. Wrong: presenting June or July 2026 features as May's."
+  }
+ ]
+}

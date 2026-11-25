@@ -1,0 +1,3 @@
+requests>=2.31
+# only for sagemaker or bedrock models (connectors and the judge)
+boto3>=1.34

@@ -1,0 +1,46 @@
+{
+ "clusters": {
+  "baseline": "http://127.0.0.1:${BENCH_BASELINE_PORT:-9321}",
+  "agentic": "http://127.0.0.1:${BENCH_AGENTIC_PORT:-9322}"
+ },
+ "proxy": {"host": "auto", "port": 9422},
+ "work_dir": "work",
+ "models": {
+  "qwen": {
+   "type": "openai",
+   "label": "Qwen 27B",
+   "url": "${LOCAL_LLM_URL:-http://host.docker.internal:8000/v1/chat/completions}",
+   "client_url": "${LOCAL_LLM_CLIENT_URL:-http://127.0.0.1:8000/v1/chat/completions}",
+   "model": "${LOCAL_LLM_MODEL:-<served-model-name>}",
+   "api_key_env": "LOCAL_LLM_API_KEY",
+   "thinking": false,
+   "temperature": 0,
+   "max_tokens": 2048
+  },
+  "sm_example": {
+   "type": "sagemaker",
+   "label": "SageMaker vLLM model",
+   "endpoint": "<sagemaker-endpoint-name>",
+   "region": "<aws-region>",
+   "thinking": false,
+   "temperature": 0,
+   "max_tokens": 2048
+  },
+  "judge": {
+   "type": "bedrock",
+   "label": "Judge",
+   "model_id": "<bedrock-model-or-inference-profile-id>",
+   "region": "<aws-region>",
+   "thinking": false,
+   "temperature": null
+  }
+ },
+ "agents": ["qwen"],
+ "inner_variants": [],
+ "setups": ["baseline", "baseline_notes", "ai_all", "ai_scoped"],
+ "judge": "judge",
+ "runs": [1, 2, 3],
+ "workers": 4,
+ "judge_workers": 8,
+ "serial_models": ["qwen"]
+}

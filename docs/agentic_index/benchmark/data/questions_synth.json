@@ -1,0 +1,478 @@
+{
+ "writer": "us.anthropic.claude-sonnet-5-5",
+ "usage": {
+  "inputTokens": 103435,
+  "outputTokens": 17072,
+  "totalTokens": 120507,
+  "cacheReadInputTokens": 0,
+  "cacheWriteInputTokens": 0
+ },
+ "questions": [
+  {
+   "q": "What's the current list price of the Pro plan per user per month?",
+   "kind": "lookup",
+   "expect": "$24 per user per month, billed annually.",
+   "gold": [
+    "pricing-2026-09-p1-c1"
+   ],
+   "ok": [
+    "pricing-2026-09-p5-c1",
+    "blog-pricing-2026-p1-c1"
+   ],
+   "grading": "Correct: $24. Wrong: $20 (March 2026 or 2025 sheet), $22 (Orbit Pro or a support reply) or $27 (unapproved draft)."
+  },
+  {
+   "q": "How many days of version history does a Pro workspace keep for files?",
+   "kind": "lookup",
+   "expect": "180 days.",
+   "gold": [
+    "pricing-2026-09-p2-c2"
+   ],
+   "ok": [],
+   "grading": "Correct: 180 days. Wrong: 7, 30 days or 10 years, which belong to other plans."
+  },
+  {
+   "q": "When do SCIM provisioning tokens stop working, and what happens at that point?",
+   "kind": "lookup",
+   "expect": "SCIM tokens expire after 365 days. When one expires, provisioning stops until it is replaced with a new token.",
+   "gold": [
+    "man-platform-admin-p3-c2"
+   ],
+   "ok": [],
+   "grading": "Correct: 365 days, with provisioning stopping until the token is replaced. Partial: the 365 days only."
+  },
+  {
+   "q": "What's the longest full path a synced file can have in Nimbus Sync before it gets skipped?",
+   "kind": "lookup",
+   "expect": "400 characters, counting the Nimbus folder location and every parent folder name.",
+   "gold": [
+    "man-sync-user-p3-c2"
+   ],
+   "ok": [
+    "forum-311-p1-c1"
+   ],
+   "grading": "Correct: 400 characters. Wrong: any other number."
+  },
+  {
+   "q": "If I list collections through the Gateway REST API without specifying a limit, how many items come back per page, and what's the most I can ask for?",
+   "kind": "lookup",
+   "expect": "The default page size is 50 items. The maximum is 200 per request, set with the limit parameter.",
+   "gold": [
+    "api-gateway-v2-p2-c2"
+   ],
+   "ok": [],
+   "grading": "Correct: default 50, max 200. Wrong: a maximum of 500 (support ticket). Partial: only one of the two numbers."
+  },
+  {
+   "q": "Which regions can an Enterprise customer pick for data residency, and can the choice be changed afterwards?",
+   "kind": "lookup",
+   "expect": "US, EU (Frankfurt) or APAC (Tokyo), chosen when the workspace is created. The region cannot be changed later. Moving needs a migration handled by support.",
+   "gold": [
+    "man-platform-admin-p8-c1"
+   ],
+   "ok": [
+    "blog-tokyo-p1-c1"
+   ],
+   "grading": "Correct: the three regions and that the region is fixed at creation, with moves done via support migration. Partial: regions only."
+  },
+  {
+   "q": "How long does Nimbus Analytics keep query history before removing entries?",
+   "kind": "lookup",
+   "expect": "90 days.",
+   "gold": [
+    "man-analytics-p4-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: 90 days."
+  },
+  {
+   "q": "What monthly uptime does Nimbus commit to for Gateway on the Enterprise plan?",
+   "kind": "lookup",
+   "expect": "99.95% monthly uptime.",
+   "gold": [
+    "sec-sla-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: 99.95%. Wrong: 99.9% (the Pro figure) or 99.9% from the Orbit changelog."
+  },
+  {
+   "q": "I'm a Pro admin who wants single sign-on. Is it included in my plan, and which identity providers and protocols can I connect?",
+   "kind": "cross_source",
+   "expect": "Yes. SSO is included in Pro (and Enterprise) and works with SAML 2.0 and OIDC. Nimbus supports Okta, Microsoft Entra ID and Google Workspace as identity providers.",
+   "gold": [
+    "pricing-2026-09-p4-c1",
+    "man-platform-admin-p2-c1"
+   ],
+   "ok": [
+    "rn-platform-2026-09-p1-c1"
+   ],
+   "grading": "Correct: Pro includes SSO, with SAML 2.0/OIDC and the three named providers. Partial: only the plan or only the providers. Wrong: saying SSO is Enterprise-only (old sheets) or that OneLogin is officially supported."
+  },
+  {
+   "q": "We've got five people in our Free workspace. Under the current rules, how many can still edit, and who loses edit access?",
+   "kind": "cross_source",
+   "expect": "Free now supports up to 3 users. The 3 who joined earliest keep working normally. The other two get read-only access until the workspace upgrades or removes users.",
+   "gold": [
+    "pricing-2026-09-p1-c1",
+    "faq-free-limit-p1-c1"
+   ],
+   "ok": [
+    "pricing-2026-09-p5-c1"
+   ],
+   "grading": "Correct: 3 keep editing (earliest by join date), 2 become read-only. Wrong: 5 users allowed (older sheet and forum posts)."
+  },
+  {
+   "q": "Which Nimbus Sync version do I need to install on Ubuntu 24.04, and what's the oldest Ubuntu release the 5.x client supports?",
+   "kind": "cross_source",
+   "expect": "Ubuntu 24.04 packages arrived with Nimbus Sync 5.3, so use 5.3 or later. The 5.x client supports Ubuntu 22.04 or later.",
+   "gold": [
+    "man-sync-user-p1-c1",
+    "rn-sync-5.3-p1-c2"
+   ],
+   "ok": [
+    "rn-sync-5.3-p1-c1"
+   ],
+   "grading": "Correct: 5.3 or later for 24.04, with 22.04 as the minimum. Wrong: citing Orbit Sync 5.1 as adding Ubuntu 24.04 support."
+  },
+  {
+   "q": "Since when can Starter workspaces bring in guests, and what are guests able to do?",
+   "kind": "cross_source",
+   "expect": "Guest access on Starter was announced in the November 2026 platform release (Nov 10, 2026). Guests can view and comment on shared files but cannot create shared drives.",
+   "gold": [
+    "rn-platform-2026-11-p1-c1",
+    "man-platform-admin-p1-c2"
+   ],
+   "ok": [],
+   "grading": "Correct: the November 2026 release plus view and comment but no creating shared drives. Partial: only one half. Wrong: saying Free workspaces have guest access."
+  },
+  {
+   "q": "How many widgets can a Pro dashboard hold now, and what was the limit before it changed?",
+   "kind": "cross_source",
+   "expect": "A Pro dashboard now holds 40 widgets. The Analytics 2.4 release (Sept 2026) raised it from 25.",
+   "gold": [
+    "rn-analytics-2.4-p1-c1",
+    "man-analytics-p1-c1"
+   ],
+   "ok": [
+    "blog-analytics-24-p1-c1"
+   ],
+   "grading": "Correct: 40 now, 25 before. Wrong: 25 as the current limit (retired 1.x guide, ticket, forum)."
+  },
+  {
+   "q": "How long are audit events retained on Enterprise, and is there a way to ship them automatically to our own storage?",
+   "kind": "cross_source",
+   "expect": "Enterprise keeps audit events for 7 years. Since the October 2026 release, Enterprise can export audit logs daily to an Amazon S3 bucket they own, besides manual CSV export.",
+   "gold": [
+    "man-platform-admin-p4-c1",
+    "rn-platform-2026-10-p1-c2"
+   ],
+   "ok": [
+    "man-platform-admin-p4-c2"
+   ],
+   "grading": "Correct: 7 years plus daily S3 export. Partial: only one of the two. Wrong: 1 year (the Pro add-on retention) or 2 years (support guess)."
+  },
+  {
+   "q": "We're a Pro team of 40 and want audit logs. What would the add-on cost per month, and how long would the events be kept?",
+   "kind": "cross_source",
+   "expect": "The Pro audit log add-on is $3 per user per month, so 40 users cost $120 per month. Events are kept for 1 year with the Pro add-on.",
+   "gold": [
+    "pricing-2026-09-p4-c2",
+    "man-platform-admin-p4-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: $120/month and 1 year. Wrong: 2 years retention (unconfirmed ticket); Pro audit logs not being sold (2024 sheet)."
+  },
+  {
+   "q": "Our Enterprise workspace stores data in the Tokyo region. Which Gateway host should our integrations call?",
+   "kind": "cross_source",
+   "expect": "api.apac.nimbus.example. Enterprise workspaces must call the endpoint of their data residency region, and the APAC (Tokyo) endpoint became generally available for Enterprise in Gateway 3.2 (Nov 16, 2026).",
+   "gold": [
+    "man-gateway-p4-c1",
+    "rn-gateway-3.2-p1-c1"
+   ],
+   "ok": [
+    "man-platform-admin-p8-c1"
+   ],
+   "grading": "Correct: api.apac.nimbus.example. Wrong: the US or EU host, or saying APAC isn't available (older ticket)."
+  },
+  {
+   "q": "Which Nimbus Sync release notes were published from October 2026 onward?",
+   "kind": "filter",
+   "expect": "Three: Sync 5.2 (Oct 7, 2026, Pro), Sync 5.2.1 (Oct 21, 2026, all plans) and Sync 5.3 (Nov 4, 2026, Free).",
+   "gold": [
+    "rn-sync-5.2-p1-c1",
+    "rn-sync-5.2.1-p1-c1",
+    "rn-sync-5.3-p1-c1"
+   ],
+   "ok": [
+    "rn-sync-5.2.1-p1-c2",
+    "rn-sync-5.3-p1-c2"
+   ],
+   "grading": "Correct: exactly 5.2, 5.2.1 and 5.3. Partial: a subset. Wrong: including 5.1.1 or earlier, or Orbit Sync changelogs."
+  },
+  {
+   "q": "Which Nimbus Gateway release notes since August 2026 apply to the Enterprise plan?",
+   "kind": "filter",
+   "expect": "Three: Gateway 3.0.1 (Aug 5, 2026), Gateway 3.1 (Nov 2, 2026) and Gateway 3.2 (Nov 16, 2026).",
+   "gold": [
+    "rn-gateway-3.0.1-p1-c1",
+    "rn-gateway-3.1-p1-c1",
+    "rn-gateway-3.2-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: exactly 3.0.1, 3.1 and 3.2. Wrong: including 3.0 (July). Partial: missing any."
+  },
+  {
+   "q": "Which monthly Nimbus Platform releases in 2026 apply to the Free plan?",
+   "kind": "filter",
+   "expect": "Three: June 2026, August 2026 and November 2026. The July, September and October releases don't cover Free.",
+   "gold": [
+    "rn-platform-2026-06-p1-c1",
+    "rn-platform-2026-08-p1-c1",
+    "rn-platform-2026-11-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: exactly June, August and November. Wrong: including July (Starter/Pro/Enterprise), September (Pro/Enterprise) or October (Enterprise)."
+  },
+  {
+   "q": "Which Nimbus Analytics release notes apply to the Pro plan?",
+   "kind": "filter",
+   "expect": "Three: Analytics 2.3 (June 30), 2.3.1 (July 14) and 2.4 (Sept 25). Analytics 2.5 covers Enterprise only.",
+   "gold": [
+    "rn-analytics-2.3-p1-c1",
+    "rn-analytics-2.3.1-p1-c1",
+    "rn-analytics-2.4-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: exactly 2.3, 2.3.1 and 2.4. Wrong: including 2.5."
+  },
+  {
+   "q": "Which Nimbus Gateway release notes cover the Starter plan?",
+   "kind": "filter",
+   "expect": "Two: Gateway 3.0 (July 15, 2026) and Gateway 3.0.1 (Aug 5, 2026). Releases 3.1 and 3.2 are for Pro/Enterprise and Enterprise respectively.",
+   "gold": [
+    "rn-gateway-3.0-p1-c1",
+    "rn-gateway-3.0.1-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: exactly 3.0 and 3.0.1. Wrong: including 3.1 or 3.2."
+  },
+  {
+   "q": "Which Nimbus Platform releases since September 2026 include Enterprise customers?",
+   "kind": "filter",
+   "expect": "Three: the September 2026 release (Sept 15), the October 2026 release (Oct 14) and the November 2026 release (Nov 10).",
+   "gold": [
+    "rn-platform-2026-09-p1-c1",
+    "rn-platform-2026-10-p1-c1",
+    "rn-platform-2026-11-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: exactly September, October and November. Wrong: including August or earlier."
+  },
+  {
+   "q": "Between June and August 2026, which Nimbus Sync release notes applied to Free-plan users?",
+   "kind": "filter",
+   "expect": "Two: Sync 5.0 (June 10) and Sync 5.0.1 (June 24). Sync 5.1 (Aug 19) covers Pro/Enterprise only. 5.1.1 came in September.",
+   "gold": [
+    "rn-sync-5.0-p1-c1",
+    "rn-sync-5.0.1-p1-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: exactly 5.0 and 5.0.1. Wrong: including 5.1 or 5.1.1."
+  },
+  {
+   "q": "How many days from today (Nov 18, 2026) until SMS codes for two-factor authentication are removed?",
+   "kind": "numeric_date",
+   "expect": "SMS codes are removed on March 31, 2027, which is 133 days from Nov 18, 2026.",
+   "gold": [
+    "rn-platform-2026-11-p1-c1"
+   ],
+   "ok": [
+    "man-platform-admin-p5-c1"
+   ],
+   "grading": "Correct: 133 days, with the March 31, 2027 date. Allow \u00b11 day. Wrong: a different removal date."
+  },
+  {
+   "q": "We have 30 Pro seats on the old $20 rate, and our annual renewal falls on February 1, 2027. What will that renewal cost per year compared with what we pay now?",
+   "kind": "numeric_date",
+   "expect": "Existing Pro customers keep $20 until their first renewal after January 1, 2027, so a February 1, 2027 renewal moves to $24. Now: 30\u00d7$20\u00d712 = $7,200 per year. After: 30\u00d7$24\u00d712 = $8,640 per year, an increase of $1,440.",
+   "gold": [
+    "pricing-2026-09-p5-c2",
+    "pricing-2026-09-p1-c1"
+   ],
+   "ok": [
+    "pricing-2026-09-p5-c1"
+   ],
+   "grading": "Correct: $8,640/yr versus $7,200/yr (+$1,440). Wrong: using $22 per user (support reply) or keeping $20 after the renewal."
+  },
+  {
+   "q": "We're on Starter with 25 users. If we choose monthly billing instead of annual, what would we pay each month?",
+   "kind": "numeric_date",
+   "expect": "Starter is $9 per user per month on annual billing and monthly billing costs 20% more, i.e. $10.80 per user. For 25 users that's $270 per month, versus $225 on annual.",
+   "gold": [
+    "pricing-2026-09-p1-c1",
+    "pricing-2026-09-p2-c1"
+   ],
+   "ok": [
+    "pricing-2026-09-p1-c2",
+    "pricing-2026-09-p2-c2"
+   ],
+   "grading": "Correct: $270/month. Wrong: a 10% premium (support reply), giving $247.50."
+  },
+  {
+   "q": "How many days from today (Nov 18, 2026) until API v1 is shut down?",
+   "kind": "numeric_date",
+   "expect": "API v1 shuts down on June 30, 2027, which is 224 days after Nov 18, 2026.",
+   "gold": [
+    "api-gateway-v2-p4-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: 224 days (\u00b11) with June 30, 2027. Wrong: using the end-of-2026 date from a ticket or forum guess."
+  },
+  {
+   "q": "A Pro customer had Gateway problems during the November 12, 2026 outage. What is the last date they can request an SLA credit through support?",
+   "kind": "numeric_date",
+   "expect": "Credits must be requested within 30 days of the end of the month in which the shortfall occurred. The month ends Nov 30, 2026, so the deadline is December 30, 2026.",
+   "gold": [
+    "sec-sla-p2-c2"
+   ],
+   "ok": [
+    "sec-sla-p2-c1",
+    "faq-sla-claim-p1-c1"
+   ],
+   "grading": "Correct: Dec 30, 2026. Wrong: counting 30 days from Nov 12 (Dec 12) or claiming automatic credits (forum post)."
+  },
+  {
+   "q": "Our Enterprise Gateway fee is $2,000 a month and uptime for the month was 98.5%. How much SLA credit are we owed?",
+   "kind": "numeric_date",
+   "expect": "98.5% is below 99.0% but not below 95.0%, so the credit is 25% of the monthly Gateway fee, which is $500. Tiers don't stack, so it is not 35%.",
+   "gold": [
+    "sec-sla-p1-c2",
+    "sec-sla-p1-c3"
+   ],
+   "ok": [],
+   "grading": "Correct: $500 (25%). Wrong: $200 (10%), $700 (stacked), $1,000 (50%), or 5% from a ticket or the Orbit changelog."
+  },
+  {
+   "q": "When is Nimbus Sync 5.4 coming out, and what will it fix?",
+   "kind": "no_answer",
+   "expect": "The official documents don't mention a Sync 5.4 release date or contents. An internal draft estimate is not an official commitment, and E4012 for Pro was already addressed in 5.2.",
+   "gold": [],
+   "ok": [],
+   "grading": "Correct: says the information isn't in the official docs. Wrong: stating that 5.4 will fix E4012 or giving a release date."
+  },
+  {
+   "q": "What will the Pro plan cost starting in April 2027?",
+   "kind": "no_answer->lookup",
+   "expect": "No new 2027 price has been announced: the published Pro price is $24 per user per month (September 15, 2026 sheet), and existing Pro customers on $20 move to $24 at their first renewal after January 1, 2027. The $27 figure is an unapproved internal draft.",
+   "gold": [
+    "pricing-2026-09-p1-c1"
+   ],
+   "ok": [
+    "pricing-2026-09-p5-c1",
+    "pricing-2026-09-p5-c2"
+   ],
+   "grading": "Correct: $24 per user per month (the published price, with no announced change), optionally noting the move from $20 at the first renewal after January 1, 2027, or saying no separate April 2027 price is published while giving $24 as the current price. Partial: says no 2027 price is published but does not give $24, or mentions the $27 draft as a possibility without rejecting it. Wrong: giving $27 (or Starter $10) from the unapproved draft as the April 2027 price, or $20."
+  },
+  {
+   "q": "What's the largest file I can upload in a single request through the Gateway REST API?",
+   "kind": "no_answer",
+   "expect": "The official documentation doesn't state a maximum file size for uploads through the Gateway API.",
+   "gold": [],
+   "ok": [],
+   "grading": "Correct: says it isn't specified. Wrong: giving a number such as 15 GB or 250 GB (Nimbus Sync desktop limits) or 50 GB (old or retired sources)."
+  },
+  {
+   "q": "What uptime percentage does Nimbus guarantee for Nimbus Platform itself?",
+   "kind": "no_answer",
+   "expect": "The official SLA only covers Nimbus Gateway, with commitments for Pro and Enterprise. It gives no uptime commitment for Nimbus Platform.",
+   "gold": [],
+   "ok": [],
+   "grading": "Correct: says no Platform uptime figure is published (can mention the SLA is Gateway-only). Wrong: giving the Gateway percentages as Platform commitments, or Orbit's 99.9%/5% credit."
+  },
+  {
+   "q": "How many API keys can a workspace create in the Nimbus Gateway console?",
+   "kind": "no_answer",
+   "expect": "The official documents don't state a limit on the number of API keys per workspace. They only cover key expiry (1 year) and rotation advice.",
+   "gold": [],
+   "ok": [],
+   "grading": "Correct: says no limit is documented. Wrong: inventing a number."
+  },
+  {
+   "q": "What is the Gateway burst limit on the Pro plan right now?",
+   "kind": "distractor",
+   "expect": "100 requests per second for Pro workspaces.",
+   "gold": [
+    "pricing-2026-09-p3-c2"
+   ],
+   "ok": [],
+   "grading": "Correct: 100 requests/s. Wrong: 50/s (2025 sheet, support ticket, forum) or 150/s (draft proposal and roadmap, not released) or 200/s (Orbit Pro)."
+  },
+  {
+   "q": "What is the biggest file Nimbus Sync will upload on the Starter plan?",
+   "kind": "distractor",
+   "expect": "15 GB on Free and Starter. Larger files are skipped with a warning.",
+   "gold": [
+    "man-sync-user-p3-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: 15 GB. Wrong: 50 GB (retired 4.x guide, a ticket reply and a forum post)."
+  },
+  {
+   "q": "If our webhook endpoint is down, how many times does Gateway retry a delivery before dropping the event?",
+   "kind": "distractor",
+   "expect": "Failed deliveries are retried 5 times with exponential backoff over 24 hours, after which the event is dropped.",
+   "gold": [
+    "man-gateway-p3-c2"
+   ],
+   "ok": [],
+   "grading": "Correct: 5 retries over 24 hours. Wrong: 3 retries (support ticket and forum claim)."
+  },
+  {
+   "q": "How long do deleted files stay in the trash on a Pro workspace before they are permanently removed?",
+   "kind": "distractor",
+   "expect": "60 days on Pro. (Free 14, Starter 30, Enterprise 90.)",
+   "gold": [
+    "man-platform-admin-p7-c1"
+   ],
+   "ok": [],
+   "grading": "Correct: 60 days. Wrong: 30 days (ticket reply and forum post) or other plans' values."
+  },
+  {
+   "q": "Can our Starter workspace get SSO, perhaps as a paid add-on?",
+   "kind": "distractor",
+   "expect": "No. SSO is included in Pro and Enterprise. The published add-ons are audit logs for Pro and Analytics for Starter, and none is an SSO add-on for Starter. Downgrading from Pro to Starter turns SSO off.",
+   "gold": [
+    "pricing-2026-09-p4-c1"
+   ],
+   "ok": [
+    "faq-downgrade-p1-c1",
+    "man-platform-admin-p2-c1",
+    "rn-platform-2026-09-p1-c2"
+   ],
+   "grading": "Correct: no, SSO needs Pro or Enterprise. Wrong: saying Starter can buy SSO for $3 (support reply and forum rumor)."
+  },
+  {
+   "q": "What nonprofit discount does Nimbus offer, and which plans does it apply to?",
+   "kind": "distractor",
+   "expect": "Registered nonprofits get 30% off Starter and Pro, requested by an admin under Billing with proof of registered status.",
+   "gold": [
+    "pricing-2026-09-p6-c1"
+   ],
+   "ok": [
+    "faq-nonprofit-p1-c1"
+   ],
+   "grading": "Correct: 30% off Starter and Pro. Wrong: 50% (2024 sheet, support ticket) or Starter only."
+  }
+ ],
+ "gold_changes": [
+  {
+   "qi": 31,
+   "old_expect": "No 2027 pricing has been published. The current Pro price is $24 per user per month, and nothing officially announces a change.",
+   "old_grading": "Correct: says no 2027 price is published (may mention the current $24). Wrong: giving $27 or Starter at $10 from the unapproved draft.",
+   "reason": "pricing-2026-09-p5-c2 (official) states the $24 price applies to existing Pro customers at their first renewal after January 1, 2027, so the old expectation that no 2027 pricing is published contradicts the source; $24 is the documented price for April 2027.",
+   "old_gold": [],
+   "new_kind": "no_answer->lookup (counted as lookup)"
+  }
+ ]
+}

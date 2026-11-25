@@ -1,0 +1,4 @@
+work/
+config.json
+docker/*.zip
+__pycache__/

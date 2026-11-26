@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -397,7 +398,11 @@ public class RestMLExecuteStreamAction extends BaseRestHandler {
             agentInput.setIsAsync(async);
         }
 
-        if (((AgentMLInput) input).getInputDataset() instanceof RemoteInferenceInputDataSet inputDataSet) {
+        AgentMLInput agentMLInput = (AgentMLInput) input;
+        
+        // Check if inputDataSet exists (legacy/AG-UI case) or is null (unified agent interface case)
+        if (agentMLInput.getInputDataset() instanceof RemoteInferenceInputDataSet inputDataSet) {
+            // Legacy/AG-UI case: inputDataSet already exists, just set stream parameter
             if (!mlFeatureEnabledSetting.isRemoteAgenticMemoryEnabled()) {
                 if (inputDataSet.getParameters() != null) {
                     String memoryConfig = inputDataSet.getParameters().get(MEMORY_CONFIGURATION_FIELD);
@@ -407,8 +412,18 @@ public class RestMLExecuteStreamAction extends BaseRestHandler {
                 }
             }
             inputDataSet.getParameters().put("stream", String.valueOf(true));
+        } else if (agentMLInput.getInputDataset() == null && agentMLInput.hasStandardInput()) {
+            // Unified agent interface case: no inputDataSet, but has standardized agentInput
+            // Create a RemoteInferenceInputDataSet with stream parameter to enable streaming
+            Map<String, String> parameters = new HashMap<>();
+            parameters.put("stream", String.valueOf(true));
+            RemoteInferenceInputDataSet streamingDataSet = new RemoteInferenceInputDataSet(parameters);
+            agentMLInput.setInputDataset(streamingDataSet);
         } else {
-            throw new IllegalArgumentException("Expected RemoteInferenceInputDataSet for agent execution");
+            // Neither legacy nor unified format - this shouldn't happen
+            throw new IllegalArgumentException(
+                "Invalid agent input format: expected either RemoteInferenceInputDataSet or standardized AgentInput"
+            );
         }
         return new MLExecuteTaskRequest(functionName, input);
     }
